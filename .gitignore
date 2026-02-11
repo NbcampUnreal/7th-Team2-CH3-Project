@@ -4,7 +4,10 @@ Build/
 DerivedDataCache/
 Intermediate/
 Saved/
-Collections/
+Fab/
+ParagonRevenant/
+ParagonSevarog/
+Necropolis/
 
 *.sln
 *.suo
