@@ -31,6 +31,5 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float MaxHP = 100.f;
+	
 };

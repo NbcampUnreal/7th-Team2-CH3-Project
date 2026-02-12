@@ -29,8 +29,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float SightRange = 1200.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Combat")
-	float AttackRange = 600.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = "Combat")
 	float AttackDamage = 10.0f;
@@ -43,6 +41,9 @@ protected:
 	float LastAttackTime = 0.0f;
 
 public:	
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float AttackRange = 600.f;
+
 	virtual void Tick(float DeltaTime) override;
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
