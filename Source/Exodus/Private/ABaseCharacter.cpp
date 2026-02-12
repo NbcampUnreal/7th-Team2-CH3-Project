@@ -29,8 +29,6 @@ AABaseCharacter::AABaseCharacter()
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
-
-
 }
 
 // Called when the game starts or when spawned
@@ -46,7 +44,6 @@ void AABaseCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 }
-
 
 void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -129,7 +126,6 @@ void AABaseCharacter::Move(const FInputActionValue& Value)
 	{
 		AddMovementInput(GetActorRightVector(), MoveInput.Y);
 	}
-
 }
 
 void AABaseCharacter::StartJump(const FInputActionValue& Value)
