@@ -1,29 +1,25 @@
-﻿// Copyright © 2026 비전공회담. All rights reserved.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "MonsterBase.h" 
 #include "MonsterAIController.generated.h"
-
 
 UCLASS()
 class EXODUS_API AMonsterAIController : public AAIController
 {
 	GENERATED_BODY()
-	
 
 public:
-	virtual void Tick(float Deltatime) override;
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void OnPossess(APawn* InPawn) override;
 
 protected:
-	
 	UPROPERTY()
-	class AMonsterBase* ControlledMonster;
+	AMonsterBase* ControlledMonster = nullptr;
 
 	UPROPERTY()
-	APawn* PlayerPawn;
+	APawn* PlayerPawn = nullptr;
 
 	void UpdateAI();
 };

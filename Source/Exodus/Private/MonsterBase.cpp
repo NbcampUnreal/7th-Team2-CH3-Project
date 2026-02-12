@@ -33,7 +33,7 @@ float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	float FinalDamage = FMath::Max(DamageAmount - Defense, 1.0f);
 	CurrentHP -= FinalDamage;
 
-	if (CurrentHP < 0.0f)
+	if (CurrentHP <= 0.0f)
 	{
 		Die();
 	}
