@@ -47,5 +47,6 @@ void ABossMonster::PerformAttack(AActor* Target)
 		AttackDamage = 40.f;
 		break;
 	}
+
 	Super::PerformAttack(Target);
 }

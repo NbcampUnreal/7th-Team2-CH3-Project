@@ -16,7 +16,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-		
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP = 100.0f;
 
@@ -30,7 +30,7 @@ protected:
 	float SightRange = 1200.0f;
 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = "Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float AttackDamage = 10.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
@@ -40,7 +40,7 @@ protected:
 
 	float LastAttackTime = 0.0f;
 
-public:	
+public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackRange = 600.f;
 
@@ -54,5 +54,18 @@ public:
 	virtual bool CanAttack() const;
 	virtual void PerformAttack(AActor* Target);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Animation")
+	void BP_PlayAttack();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Animation")
+	void BP_PlayHit();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Animation")
+	void BP_PlayDeath();
+
+	UFUNCTION(BlueprintCallable)
 	bool IsDead() const { return bIsDead; }
+
+	UFUNCTION(BlueprintCallable)
+	float GetHPPercent() const { return CurrentHP / MaxHP; }
 };
