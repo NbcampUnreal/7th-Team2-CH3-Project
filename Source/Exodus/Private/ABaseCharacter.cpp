@@ -29,6 +29,13 @@ AABaseCharacter::AABaseCharacter()
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
+
+	MaxHP = 10.0f;
+	CurrentHP = MaxHP;
+
+	MaxClip = 15;
+	CurrentClip = MaxClip;
+	CurrentReserveAmmo = 30;
 }
 
 // Called when the game starts or when spawned
@@ -36,6 +43,55 @@ void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 게임 시작시 초기 스탯 재설정
+	CurrentHP = MaxHP;
+	CurrentClip = MaxClip;
+}
+
+// 데미지 처리
+float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	if (ActualDamage <= 0.0f) return 0.0f;
+
+	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
+	UE_LOG(LogTemp, Warning, TEXT("피격! 남은 체력: %.1f"), CurrentHP);
+
+	if (CurrentHP <= 0.0f)
+	{
+		UE_LOG(LogTemp, Error, TEXT("캐릭터 사망!"));
+	}
+
+	return ActualDamage;
+}
+
+// 사격
+void AABaseCharacter::Fire()
+{
+	if (CurrentClip > 0)
+	{
+		CurrentClip--;
+		UE_LOG(LogTemp, Log, TEXT("발사! 남은 탄약: %d / %d"), CurrentClip, CurrentReserveAmmo);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("탄약 부족! 재장전(R)이 필요합니다."));
+	}
+}
+
+// 재장전
+void AABaseCharacter::Reload()
+{
+	if (CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
+
+	int32 AmmoNeeded = MaxClip - CurrentClip;
+	int32 AmmoToLoad = FMath::Min(AmmoNeeded, CurrentReserveAmmo);
+
+	CurrentClip += AmmoToLoad;
+	CurrentReserveAmmo -= AmmoToLoad;
+
+	UE_LOG(LogTemp, Log, TEXT("재장전 완료! 현재 탄약: %d / %d"), CurrentClip, CurrentReserveAmmo);
 }
 
 // Called every frame

@@ -36,12 +36,27 @@ protected:
 	float SprintSpeed;
 	UPROPERTY(EditAnyWhere, BlueprintReadWrite, Category = "Movemevt")
 	float SprintSpeedMultiplier;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "Stats")
+	float MaxHP;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "Stats")
+	float CurrentHP;
+
+	// 현재 최대 탄약 수정 불가 변경 시 VisibleAnywhere -> EditAnywhere 수정
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
+	int32 MaxClip;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	int32 CurrentClip;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	int32 CurrentReserveAmmo;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+
 
 	UFUNCTION()
 	void Move(const FInputActionValue& Value);
@@ -62,5 +77,12 @@ public:
 	void StopSprint(const FInputActionValue& Value);
 
 
+	// 데미지 처리
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	// 격발, 장정
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void Fire();
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void Reload();
 
 };
