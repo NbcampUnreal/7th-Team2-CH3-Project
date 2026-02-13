@@ -5,8 +5,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/World.h"
+#include "CollisionQueryParams.h"
 #include "ABaseCharacter.generated.h"
-
 
 class USpringArmComponent;
 class UCameraComponent;
@@ -18,12 +20,11 @@ class AABaseCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	AABaseCharacter();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 
@@ -32,32 +33,39 @@ protected:
 
 	UPROPERTY(EditAnyWhere, BlueprintReadWrite, Category = "Movemevt")
 	float NomalSpeed;
+	
 	UPROPERTY(EditAnyWhere, BlueprintReadWrite, Category = "Movemevt")
 	float SprintSpeed;
+	
 	UPROPERTY(EditAnyWhere, BlueprintReadWrite, Category = "Movemevt")
 	float SprintSpeedMultiplier;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "Stats")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, category = "Stats")
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float CurrentHP;
 
-	// 현재 최대 탄약 수정 불가 변경 시 VisibleAnywhere -> EditAnywhere 수정
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxClip;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentClip;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentReserveAmmo;
+
 public:
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-
-
+//위젯함수들
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UUserWidget> WBP_CrossLine;
+	
+	UPROPERTY()
+	UUserWidget* CrossLine;
+//액션함수들
 	UFUNCTION()
 	void Move(const FInputActionValue& Value);
 
@@ -76,13 +84,43 @@ public:
 	UFUNCTION()
 	void StopSprint(const FInputActionValue& Value);
 
+	UFUNCTION()
+	void StartFire(const FInputActionValue& Value);
 
-	// 데미지 처리
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
-	// 격발, 장정
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Fire();
+	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Reload();
 
+	//공격력
+	int32 Attack;
+
+	// 데미지 처리
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	//라인트레이서 변수들
+	FHitResult Hit;
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	FCollisionQueryParams Params;
+
+	//총알딜레이
+	FTimerHandle FireTimerHandle;
+	bool bCanFire;
+	void ResultFire();
+
+	//장전딜레이
+	FTimerHandle ReloadTimerHandle;
+	void CompleteReload();
+	
+	//상태
+	bool bIsSprint;
+	
+	//스테미나 
+	FTimerHandle StaminaTimerHandle;
+	float Stamina;
+	float MaxStamina;
+	void UpdateStamina();
+	//void UpdateHp();
 };

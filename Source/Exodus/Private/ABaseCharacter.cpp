@@ -10,17 +10,19 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-// Sets default values
+#include "DrawDebugHelpers.h"
+#include "Blueprint/UserWidget.h"
+#include "MonsterBase.h"
+
 AABaseCharacter::AABaseCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
 	SpringArmComp->SetWorldLocation(FVector(0, 0, 70));
-	SpringArmComp->SocketOffset = FVector(0, 0, 50);
+	SpringArmComp->SocketOffset = FVector(0, -50, 50);
 	SpringArmComp->TargetArmLength = 310.f;
 	SpringArmComp->bUsePawnControlRotation = true;
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
@@ -31,26 +33,46 @@ AABaseCharacter::AABaseCharacter()
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
-
+	
+	//체력
 	MaxHP = 10.0f;
 	CurrentHP = MaxHP;
-
+	
+	//
+	Attack = 20;
+	//스테미나
+	MaxStamina = 100;
+	Stamina = MaxStamina;
+	
+	//총알
 	MaxClip = 15;
 	CurrentClip = MaxClip;
-	CurrentReserveAmmo = 30;
+	CurrentReserveAmmo = 60;
+	
+	//상태
+	bCanFire = true;
+	bIsSprint = false;
+
 }
 
-// Called when the game starts or when spawned
 void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 게임 시작시 초기 스탯 재설정
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
+
+
+	if (WBP_CrossLine)
+	{
+		CrossLine = CreateWidget<UUserWidget>(GetWorld(), WBP_CrossLine);
+
+		CrossLine->AddToViewport();
+	}
+
 }
 
-// 데미지 처리
+// 데미지 처리                      //데미지 값, 데미지이벤트는 무슨공격에맞았냐? 이벤트 인스티게이터 상대Target , 맞은도구????
 float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
@@ -71,36 +93,102 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 // 사격
 void AABaseCharacter::Fire()
 {
-	if (CurrentClip > 0)
+	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
+	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
+
+
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(
+		Hit,
+		ViewLocation,
+		EndPos,
+		ECC_Visibility,
+		Params);
+
+	FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
+
+	DrawDebugLine(
+		GetWorld(),
+		ViewLocation,
+		EndPos,
+		LineColor,
+		false,
+		2.0f,
+		0,
+		3.0f
+	);
+
+	if (Hit.bBlockingHit)
 	{
-		CurrentClip--;
-		UE_LOG(LogTemp, Log, TEXT("발사! 남은 탄약: %d / %d"), CurrentClip, CurrentReserveAmmo);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("탄약 부족! 재장전(R)이 필요합니다."));
+		AActor* hitAttcor = Hit.GetActor();
+		if (hitAttcor)
+		{
+			AMonsterBase* Monster = Cast<AMonsterBase>(hitAttcor);
+			if (Monster)
+			{
+				Monster->Destroy();
+				//Monster->GetHp()-Attak
+			}
+		}
 	}
 }
 
+void AABaseCharacter::StartFire(const FInputActionValue& Value)
+{
+	if (!bCanFire || CurrentClip <= 0)
+	{
+		if (CurrentClip <= 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("탄약 부족! 재장전(R)이 필요합니다."));
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("탄약부족  남은탄약: % d / % d"), CurrentClip, MaxClip));
+		}
+		return;
+	}
+	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	Params.AddIgnoredActor(this);
+	CurrentClip--;
+	bCanFire = false;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("발사! 남은탄약: %d/%d"), CurrentClip, MaxClip));
+
+	for (int i = 0; i < 4; ++i)
+	{
+		AABaseCharacter::Fire();
+	}
+	float FireRate = 0.5;
+	GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &AABaseCharacter::ResultFire, FireRate, false);
+}
 // 재장전
 void AABaseCharacter::Reload()
 {
 	if (CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
+	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+	
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue,FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
 
+	bCanFire = false;
+	float ReloadTime = 1.5f;
+	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, ReloadTime, false);
+}
+
+void AABaseCharacter::CompleteReload()
+{
 	int32 AmmoNeeded = MaxClip - CurrentClip;
 	int32 AmmoToLoad = FMath::Min(AmmoNeeded, CurrentReserveAmmo);
 
 	CurrentClip += AmmoToLoad;
 	CurrentReserveAmmo -= AmmoToLoad;
 
-	UE_LOG(LogTemp, Log, TEXT("재장전 완료! 현재 탄약: %d / %d"), CurrentClip, CurrentReserveAmmo);
+	bCanFire = true;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue,FString::Printf(TEXT("재장전완료! 현재 탄약:%d/%d"), CurrentClip, MaxClip));
 }
 
 // Called every frame
 void AABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	if(!bIsSprint)
+	{
+		Stamina = FMath::Min(Stamina+(10.0f*DeltaTime),MaxStamina);
+	}
 }
 
 void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -152,7 +240,7 @@ void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 			{
 				EnhancedInput->BindAction(
 					PlayerController->SprintAction,
-					ETriggerEvent::Triggered,
+					ETriggerEvent::Started,
 					this,
 					&AABaseCharacter::StartSpirnt
 				);
@@ -165,6 +253,26 @@ void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 				);
 			}
 
+			if (PlayerController->FireAction)
+			{
+				EnhancedInput->BindAction(
+					PlayerController->FireAction,
+					ETriggerEvent::Triggered,
+					this,
+					&AABaseCharacter::StartFire
+
+
+				);
+			}
+			if (PlayerController->ReloadAction)
+			{
+				EnhancedInput->BindAction(
+					PlayerController->ReloadAction,
+					ETriggerEvent::Triggered,
+					this,
+					&AABaseCharacter::Reload
+				);
+			}
 
 		}
 	}
@@ -211,11 +319,17 @@ void AABaseCharacter::Look(const FInputActionValue& Value)
 	AddControllerPitchInput(LookInput.Y);
 }
 
+//스프린트 액션 
+
 void AABaseCharacter::StartSpirnt(const FInputActionValue& Value)
 {
+	if (bIsSprint || Stamina <= 0) return;
+	
 	if (GetCharacterMovement())
 	{
+		bIsSprint = true;
 		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		GetWorld()->GetTimerManager().SetTimer(StaminaTimerHandle, this, &AABaseCharacter::UpdateStamina, 0.1f,true);
 	}
 }
 
@@ -223,6 +337,28 @@ void AABaseCharacter::StopSprint(const FInputActionValue& Value)
 {
 	if (GetCharacterMovement())
 	{
+		bIsSprint = false;
 		GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
+		GetWorld()->GetTimerManager().ClearTimer(StaminaTimerHandle);
 	}
 }
+
+void AABaseCharacter::UpdateStamina()
+{
+	Stamina -= 1.f;
+	if(Stamina <= 0)
+	{
+		Stamina = 0;
+		StopSprint(FInputActionValue());
+	}
+}
+
+void AABaseCharacter::ResultFire()
+{
+	bCanFire = true;
+}
+
+//void UpdateHp()
+//{
+//	if()
+//}
