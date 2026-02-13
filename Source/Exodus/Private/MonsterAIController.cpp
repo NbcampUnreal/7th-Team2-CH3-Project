@@ -19,5 +19,5 @@ void AMonsterAIController::OnUnPossess()
 {
 	Super::OnUnPossess();
 
-	StopLogic(TEXT("Monster Dead"));
+	//StopLogic(TEXT("Monster Dead"));
 }

@@ -47,5 +47,5 @@ public:
 	bool CanAttack(AActor* Target) const;
 
 
-	bool PerformAttack(AActor* Target);
+	virtual bool PerformAttack(AActor* Target);
 };
