@@ -16,7 +16,9 @@ AABaseCharacter::AABaseCharacter()
 	PrimaryActorTick.bCanEverTick = false;
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
-	SpringArmComp->TargetArmLength = 300.f;
+	SpringArmComp->SetWorldLocation(FVector(0, 0, 70));
+	SpringArmComp->SocketOffset = FVector(0, 0, 50);
+	SpringArmComp->TargetArmLength = 310.f;
 	SpringArmComp->bUsePawnControlRotation = true;
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 
@@ -24,8 +26,8 @@ AABaseCharacter::AABaseCharacter()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
-	NomalSpeed = 600.f;
-	SprintSpeedMultiplier = 1.5;
+	NomalSpeed = 360.f;
+	SprintSpeedMultiplier = 1.75;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
