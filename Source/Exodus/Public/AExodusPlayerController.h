@@ -6,9 +6,6 @@
 #include "GameFramework/PlayerController.h"
 #include "AExodusPlayerController.generated.h"
 
-/**
- * 
- */
 class UInputMappingContext;
 class UInputAction;
 
@@ -34,6 +31,12 @@ public:
 
 	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
 	UInputAction* SprintAction;
+
+	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input") 
+	UInputAction* FireAction;
+
+	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input") 
+	UInputAction* ReloadAction;
 
 	virtual void BeginPlay() override;
 };

@@ -9,6 +9,8 @@ AAExodusPlayerController::AAExodusPlayerController() :
 	, JumpAction(nullptr)
 	, LookAction(nullptr)
 	, SprintAction(nullptr)
+	, FireAction(nullptr)
+	, ReloadAction(nullptr)
 {
 
 }
