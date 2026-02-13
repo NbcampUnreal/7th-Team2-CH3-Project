@@ -1,73 +1,63 @@
-﻿// Copyright © 2026 비전공회담. All rights reserved.
-
-
-#include "MonsterBase.h"
+﻿#include "MonsterBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
 
 AMonsterBase::AMonsterBase()
 {
-	PrimaryActorTick.bCanEverTick = true;
-
+	PrimaryActorTick.bCanEverTick = false;
 }
 
 void AMonsterBase::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentHP = MaxHP;
-	
 }
 
-void AMonsterBase::Tick(float DeltaTime)
+float AMonsterBase::GetHp() const
 {
-	Super::Tick(DeltaTime);
+	return CurrentHP;
 }
 
-float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
-	AController* EventInstigator, AActor* DamageCauser)
+void AMonsterBase::ReceiveDamage(float DamageAmount)
 {
-	if (bIsDead)
+	if (bIsDead) return;
+
+	CurrentHP -= DamageAmount;
+
+	if (CurrentHP <= 0.f)
 	{
-		return 0.0f;
+		CurrentHP = 0.f;
+		bIsDead = true;
+		Destroy();
 	}
-	
-	float FinalDamage = FMath::Max(DamageAmount - Defense, 1.0f);
-	CurrentHP -= FinalDamage;
+}
 
-	BP_PlayHit();
+bool AMonsterBase::CanAttack(AActor* Target) const
+{
+	if (!Target || bIsDead)
+		return false;
 
-	if (CurrentHP <= 0.0f)
+	float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
+	return Distance <= AttackRange;
+}
+
+bool AMonsterBase::PerformAttack(AActor* Target)
+{
+	if (!CanAttack(Target))
+		return false;
+
+	if (AttackMontage)
 	{
-		Die();
-	}
-	return FinalDamage;
-}
-
-void AMonsterBase::Die()
-{
-	if (bIsDead)
-	{
-		return;
+		PlayAnimMontage(AttackMontage);
 	}
 
-	bIsDead = true;
+	float ActualDamage = UGameplayStatics::ApplyDamage(
+		Target,
+		AttackDamage,
+		GetController(),
+		this,
+		nullptr
+	);
 
-	BP_PlayDeath();
-
-	GetMesh()->SetSimulatePhysics(true);
-	SetLifeSpan(5.0f);
-}
-
-bool AMonsterBase::CanAttack() const
-{
-	return GetWorld()->TimeSeconds - LastAttackTime >= AttackCooldown;
-}
-
-void AMonsterBase::PerformAttack(AActor* Target)
-{
-	if (!Target || !CanAttack()) return;
-
-	BP_PlayAttack();
-
-	UGameplayStatics::ApplyDamage(Target, AttackDamage, GetController(), this, nullptr);
-	LastAttackTime = GetWorld()->TimeSeconds;
+	return ActualDamage > 0.f;
 }
