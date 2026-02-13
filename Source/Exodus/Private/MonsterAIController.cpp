@@ -1,47 +1,23 @@
-﻿// Copyright © 2026 비전공회담. All rights reserved.
-
-
-#include "MonsterAIController.h"
-#include "Kismet/GameplayStatics.h"
-#include "GameFramework/Character.h"
+﻿#include "MonsterAIController.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
 
 void AMonsterAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	ControlledMonster = Cast<AMonsterBase>(InPawn);
-
-	if (!ControlledMonster)
+	if (BehaviorTreeAsset)
 	{
-		UE_LOG(LogTemp, Error, TEXT("OnPossess: ControlledMonster cast failed"));
-	}
+		UBlackboardComponent* BlackboardComp;
 
-	PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+		UseBlackboard(BehaviorTreeAsset->BlackboardAsset, BlackboardComp);
+		RunBehaviorTree(BehaviorTreeAsset);
+	}
 }
 
-void AMonsterAIController::Tick(float DeltaSeconds)
+void AMonsterAIController::OnUnPossess()
 {
-	Super::Tick(DeltaSeconds);
+	Super::OnUnPossess();
 
-	UpdateAI();
-}
-
-void AMonsterAIController::UpdateAI()
-{
-	if (!ControlledMonster || !PlayerPawn) return;
-	if (ControlledMonster->IsDead()) return;
-
-	float Distance = FVector::Dist(
-		PlayerPawn->GetActorLocation(),
-		ControlledMonster->GetActorLocation()
-	);
-
-	if (Distance <= ControlledMonster->AttackRange)
-	{
-		StopMovement();
-		ControlledMonster->PerformAttack(PlayerPawn);
-		return;
-	}
-
-	MoveToActor(PlayerPawn, 100.f);
+	StopLogic(TEXT("Monster Dead"));
 }
