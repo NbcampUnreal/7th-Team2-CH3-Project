@@ -13,54 +13,81 @@
 #include "DrawDebugHelpers.h"
 #include "Blueprint/UserWidget.h"
 #include "MonsterBase.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 
 AABaseCharacter::AABaseCharacter()
 {
+	//틱함수 사용여부
+
 	PrimaryActorTick.bCanEverTick = true;
+	//스프링암 설정
+
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComp->SetupAttachment(RootComponent);
 	SpringArmComp->SetWorldLocation(FVector(0, 0, 70));
 	SpringArmComp->SocketOffset = FVector(0, -50, 50);
 	SpringArmComp->TargetArmLength = 310.f;
 	SpringArmComp->bUsePawnControlRotation = true;
+	// 카메라 설정	
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
+	//이동속도
 
 	NomalSpeed = 360.f;
 	SprintSpeedMultiplier = 1.75;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
-
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
-	
 	//체력
+
 	MaxHP = 10.0f;
 	CurrentHP = MaxHP;
-	
-	//
+	//공격력	
+
 	Attack = 20;
-	//스테미나
+	//스테미나	
+
 	MaxStamina = 100;
 	Stamina = MaxStamina;
-	
-	//총알
+	//총알	
+
 	MaxClip = 15;
 	CurrentClip = MaxClip;
 	CurrentReserveAmmo = 60;
-	
-	//상태
+	//상태	
+	bIsReloading = false;
 	bCanFire = true;
 	bIsSprint = false;
-
+	bCanLaunch = true;
+	bIsStealthMode = false;
+	//수류탄	
+	GrenadeClass = nullptr;
+	GrenadeCount = 5;
 }
 
+// 이벤트 시작시
+//체력과 총알을 초기화해주고
 void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
+
+	//머테리얼 갯수 가져오기
+	int32 MaterialCount = GetMesh()->GetNumMaterials();
+	// 
+	for (int i = 0; i < MaterialCount; ++i)
+	{
+		UMaterialInstanceDynamic* DynMaterial = GetMesh()->CreateAndSetMaterialInstanceDynamic(i);
+
+		if (DynMaterial)
+		{
+			CharacterMaterials.Add(DynMaterial);
+			DynMaterial->SetScalarParameterValue(TEXT("Opacity"), 1.0f);
+		}
+	}
 
 
 	if (WBP_CrossLine)
@@ -69,11 +96,11 @@ void AABaseCharacter::BeginPlay()
 
 		CrossLine->AddToViewport();
 	}
-
 }
 
 // 데미지 처리                      //데미지 값, 데미지이벤트는 무슨공격에맞았냐? 이벤트 인스티게이터 상대Target , 맞은도구????
-float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+                                  AActor* DamageCauser)
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
@@ -96,6 +123,10 @@ void AABaseCharacter::Fire()
 	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 
+	if (bIsStealthMode)
+	{
+		Stealth(true);
+	}
 
 	bool bIsHit = GetWorld()->LineTraceSingleByChannel(
 		Hit,
@@ -134,40 +165,47 @@ void AABaseCharacter::Fire()
 
 void AABaseCharacter::StartFire(const FInputActionValue& Value)
 {
-	if (!bCanFire || CurrentClip <= 0)
+	if (!bCanFire) { return; }
+	bCanFire = false;
+	float FireRate = 0.5;
+	GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &AABaseCharacter::ResultFire, FireRate, false);
+	if (CurrentClip <= 0)
 	{
-		if (CurrentClip <= 0)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("탄약 부족! 재장전(R)이 필요합니다."));
-			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("탄약부족  남은탄약: % d / % d"), CurrentClip, MaxClip));
-		}
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,
+		                                 FString::Printf(
+			                                 TEXT("탄약부족 재장전 (R)이 필요합니다. 남은 탄약:%d/%d"), CurrentClip, MaxClip));
 		return;
 	}
-	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
-	Params.AddIgnoredActor(this);
+
 	CurrentClip--;
-	bCanFire = false;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("발사! 남은탄약: %d/%d"), CurrentClip, MaxClip));
+
+	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	Params.AddIgnoredActor(this);
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,
+	                                 FString::Printf(TEXT("발사! 남은탄약: %d/%d"), CurrentClip, MaxClip));
 
 	for (int i = 0; i < 4; ++i)
 	{
-		AABaseCharacter::Fire();
+		Fire();
 	}
-	float FireRate = 0.5;
-	GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &AABaseCharacter::ResultFire, FireRate, false);
 }
+
 // 재장전
 void AABaseCharacter::Reload()
 {
-	if (CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
+	if (bIsReloading || CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
 	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
-	
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue,FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
 
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
+
+	bIsReloading = true;
 	bCanFire = false;
 	float ReloadTime = 1.5f;
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, ReloadTime, false);
 }
+
 
 void AABaseCharacter::CompleteReload()
 {
@@ -177,17 +215,26 @@ void AABaseCharacter::CompleteReload()
 	CurrentClip += AmmoToLoad;
 	CurrentReserveAmmo -= AmmoToLoad;
 
+	bIsReloading = false;
 	bCanFire = true;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue,FString::Printf(TEXT("재장전완료! 현재 탄약:%d/%d"), CurrentClip, MaxClip));
 }
 
-// Called every frame
 void AABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if(!bIsSprint)
+	if (!bIsSprint && !bIsStealthMode)
 	{
-		Stamina = FMath::Min(Stamina+(10.0f*DeltaTime),MaxStamina);
+		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
+	}
+
+	if (bIsStealthMode)
+	{
+		Stamina -= 10 * DeltaTime;
+		if (Stamina < 0.0f)
+		{
+			Stamina = 0.0f;
+			Stealth(true);
+		}
 	}
 }
 
@@ -199,7 +246,6 @@ void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	{
 		if (AAExodusPlayerController* PlayerController = Cast<AAExodusPlayerController>(GetController()))
 		{
-
 			if (PlayerController->MoveAction)
 			{
 				EnhancedInput->BindAction(
@@ -242,7 +288,7 @@ void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 					PlayerController->SprintAction,
 					ETriggerEvent::Started,
 					this,
-					&AABaseCharacter::StartSpirnt
+					&AABaseCharacter::StartSprint
 				);
 
 				EnhancedInput->BindAction(
@@ -274,6 +320,26 @@ void AABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 				);
 			}
 
+			if (PlayerController->ThrowGrenadeAction)
+			{
+				EnhancedInput->BindAction(
+					PlayerController->ThrowGrenadeAction,
+					ETriggerEvent::Triggered,
+					this,
+					&AABaseCharacter::LaunchGrenade
+				);
+			}
+
+			if (PlayerController->StealthAction)
+			{
+				EnhancedInput->BindAction(
+					PlayerController->StealthAction,
+					ETriggerEvent::Triggered,
+					this,
+					&AABaseCharacter::Stealth,
+					false
+				);
+			}
 		}
 	}
 }
@@ -304,9 +370,8 @@ void AABaseCharacter::StartJump(const FInputActionValue& Value)
 
 void AABaseCharacter::StopJump(const FInputActionValue& Value)
 {
-
 	if (Value.Get<bool>())
-	{
+	{	
 		StopJumping();
 	}
 }
@@ -321,15 +386,15 @@ void AABaseCharacter::Look(const FInputActionValue& Value)
 
 //스프린트 액션 
 
-void AABaseCharacter::StartSpirnt(const FInputActionValue& Value)
+void AABaseCharacter::StartSprint(const FInputActionValue& Value)
 {
 	if (bIsSprint || Stamina <= 0) return;
-	
+
 	if (GetCharacterMovement())
 	{
 		bIsSprint = true;
 		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
-		GetWorld()->GetTimerManager().SetTimer(StaminaTimerHandle, this, &AABaseCharacter::UpdateStamina, 0.1f,true);
+		GetWorld()->GetTimerManager().SetTimer(StaminaTimerHandle, this, &AABaseCharacter::UpdateStamina, 0.1f, true);
 	}
 }
 
@@ -346,17 +411,156 @@ void AABaseCharacter::StopSprint(const FInputActionValue& Value)
 void AABaseCharacter::UpdateStamina()
 {
 	Stamina -= 1.f;
-	if(Stamina <= 0)
+	if (Stamina <= 0)
 	{
 		Stamina = 0;
 		StopSprint(FInputActionValue());
 	}
 }
 
+
 void AABaseCharacter::ResultFire()
 {
 	bCanFire = true;
 }
+
+void AABaseCharacter::LaunchGrenade()
+{
+	//수류탄을 던진상태인가? 맞다면 리턴
+	if (!bCanLaunch) { return; }
+	// 던지고나면 FALSE로 수정
+	bCanLaunch = false;
+
+	//수류탄이 있다면
+	if (GrenadeClass && GrenadeCount > 0)
+	{
+		// 스폰 로케이션에 메쉬의 스켈레톤 메쉬의 hand_r 에있는 위치르 를가져오고
+		FVector SpawnLocation = GetMesh()->GetSocketLocation(TEXT("hand_r"));
+		// 스폰 로테이터 생성시의 회전값을 가져온다
+		FRotator SpawnRotation = GetControlRotation();
+		//액터를 스폰할 명령어들
+		FActorSpawnParameters SpawnParams;
+		//파라마미터에 있는 오너를 자기자신(캐릭터)으로 설정하고
+		SpawnParams.Owner = this;
+		// 이 수류탄을 누가 던질것인가?
+		SpawnParams.Instigator = GetInstigator();
+		//스폰시 충돌이 일어나면 어떠한방법을 사용할것인가  충돌을무시하고 생성
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		// 수류탄타입인 변수하나 만들고 수류탄 생성
+		AGrenade* SpwanedGrenade = GetWorld()->SpawnActor<AGrenade>(GrenadeClass, SpawnLocation, SpawnRotation,
+		                                                            SpawnParams);
+		// 수류탄이 생성됬다면
+		if (SpwanedGrenade)
+		{
+			GrenadeCount--;
+			//수류탄의 물리엔진을가져온다
+			UProjectileMovementComponent* ProjectileComp = SpwanedGrenade->GetProjectileMovement();
+			//루트 컴포넌트를 조작하기위한 형변환
+			UPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(SpwanedGrenade->GetRootComponent());
+
+			// 루트 프라밋티비가 있다면
+			if (RootPrimitive)
+			{
+				// 이그노어 설정을 즉 무시할 애들을 나자신(캐릭터와)을 진짜 무시할거야 true
+				RootPrimitive->IgnoreActorWhenMoving(this, true);
+			}
+			GetWorld()->GetTimerManager().SetTimer(
+				LaunchTimerHandle,
+				this,
+				&AABaseCharacter::bLaunch,
+				5.0f,
+				false);
+			// 프로젝트컴프가 존재한다면
+			if (ProjectileComp)
+			{
+				//엑터의 움직임을 멈추고 물리계산을 초기화
+				ProjectileComp->StopMovementImmediately();
+				//발사되는 순간의속도
+				ProjectileComp->InitialSpeed = 1500.f;
+				// 최고속도
+				ProjectileComp->MaxSpeed = 1500.f;
+				// 날아가가는 방향 즉 엑터가 생성될때의 회전값을 받음
+				FVector LaunchDirection = SpawnRotation.Vector();
+				// 방향에 z축만큼 0.5 더함
+				LaunchDirection += FVector(0.f, 0.f, 0.5f);
+				// 길이를  1로 해서 방향정보만남김
+				LaunchDirection.Normalize();
+				//방향 * 힘의크기를 곱해서  벡터값을구함 
+				ProjectileComp->Velocity = LaunchDirection * ProjectileComp->InitialSpeed;
+				// 컴포넌트에 즉시 반영
+				ProjectileComp->UpdateComponentVelocity();
+				//수류탄의 컴포넌트를 활성화시켜서 날아가게만듬
+				ProjectileComp->Activate(true);
+			}
+		}
+		if (bIsStealthMode)
+		{
+			Stealth(true);
+		}
+	}
+
+	// if (SpwanedGrenade)
+	// {
+	// 	FVector LaunchDirection = SpawnRotation.Vector();
+	// 	float ThrowSpeed = 1500.f;
+	// 	SpwanedGrenade->GetProjectileMovement()->Velocity = LaunchDirection * ThrowSpeed;
+	// 	if (GEngine)
+	// 	{
+	// 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,TEXT("수류탄 생성"));
+	// 	}
+	// }
+}
+
+
+void AABaseCharacter::bLaunch()
+{
+	bCanLaunch = true;
+}
+
+void AABaseCharacter::Stealth(bool bIsForce)
+{
+	//은신상태가 아니면서 스테미나가 0보다 크면 
+	if (!bIsForce && bIsStealthCooldown)
+	{
+		return;
+	}
+
+	if (!bIsStealthMode && Stamina > 0.0f)
+	{
+		//은신상태로
+		bIsStealthMode = true;
+		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
+		{
+			if (Mat)
+			{
+				Mat->SetScalarParameterValue(TEXT("Opacity"), 0.2f);
+			}
+		}
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan, TEXT("은신 활성화!"));
+	}
+	else
+	{
+		bIsStealthMode = false;
+		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
+		{
+			if (Mat)
+			{
+				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f); // 원래대로 복구 [cite: 2026-02-18]
+			}
+		}
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("은신 해제!"));
+	}
+	bIsStealthCooldown = true;
+
+	GetWorldTimerManager().SetTimer(StealthTimerHandle, this, &AABaseCharacter::StealthCoolDown, 3.0f, false);
+}
+
+void AABaseCharacter::StealthCoolDown()
+{
+	bIsStealthCooldown = false;
+}
+
+//void hit();
 
 //void UpdateHp()
 //{
