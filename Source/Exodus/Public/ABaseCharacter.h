@@ -21,8 +21,12 @@ class AABaseCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float CurrentHP;
+	
 	AABaseCharacter();
-
+	
+	float SetHp() {return CurrentHP;}
 protected:
 	virtual void BeginPlay() override;
 
@@ -44,8 +48,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float CurrentHP;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxClip;
