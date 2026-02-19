@@ -27,13 +27,12 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
     if (!PlayerCharacter) return;
 
     float Distance = FVector::Dist(AIPawn->GetActorLocation(), PlayerCharacter->GetActorLocation());
-
-    if (Distance <= DetectRadius)
-    {
-        OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
+    if (Distance <= DetectRadius && PlayerCharacter->ActorHasTag(TEXT("Player"))) 
+    { 
+        OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter); 
     }
     else
-    {
-        OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
+    { 
+        OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName); 
     }
 }
