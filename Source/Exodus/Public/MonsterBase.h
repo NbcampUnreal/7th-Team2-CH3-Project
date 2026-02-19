@@ -15,6 +15,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	
 
 	UPROPERTY(EditAnywhere, Category = "Stats")
 	float MaxHP = 100.f;
@@ -34,6 +35,7 @@ public:
 
 	bool IsDead() const { return bIsDead; }
 
+	
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackRange = 150.f;
@@ -44,8 +46,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float AttackCooldown = 2.f;
+
 	bool CanAttack(AActor* Target) const;
 
-
 	virtual bool PerformAttack(AActor* Target);
+
+	virtual void Die();
+
+protected:
+
+	bool bCanAttack = true;
+
+	FTimerHandle AttackCooldownTimer;
+
+	void ResetAttack();
+
+	FTimerHandle DeathTimer;
+
+	void DestroyAfterDeath();
 };
