@@ -172,8 +172,7 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 	if (CurrentClip <= 0)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,
-		                                 FString::Printf(
-			                                 TEXT("탄약부족 재장전 (R)이 필요합니다. 남은 탄약:%d/%d"), CurrentClip, MaxClip));
+		                                 FString::Printf(TEXT("탄약부족 재장전 (R)이 필요합니다. 남은 탄약:%d/%d"), CurrentClip, MaxClip));
 		return;
 	}
 
@@ -529,6 +528,8 @@ void AABaseCharacter::Stealth(bool bIsForce)
 	{
 		//은신상태로
 		bIsStealthMode = true;
+		Tags.Remove(TEXT("Player"));
+		Tags.AddUnique(TEXT("Stealth"));
 		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
 		{
 			if (Mat)
@@ -536,11 +537,16 @@ void AABaseCharacter::Stealth(bool bIsForce)
 				Mat->SetScalarParameterValue(TEXT("Opacity"), 0.2f);
 			}
 		}
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Cyan, TEXT("은신 활성화!"));
+		GEngine->AddOnScreenDebugMessage(-1,
+			2.0f,
+			FColor::Cyan,
+			TEXT("은신 활성화!"));
 	}
 	else
 	{
 		bIsStealthMode = false;
+		Tags.Remove(TEXT("Stealth"));
+		Tags.AddUnique(TEXT("Player"));
 		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
 		{
 			if (Mat)
@@ -548,11 +554,19 @@ void AABaseCharacter::Stealth(bool bIsForce)
 				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f); // 원래대로 복구 [cite: 2026-02-18]
 			}
 		}
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Yellow, TEXT("은신 해제!"));
+		GEngine->AddOnScreenDebugMessage(-1,
+			2.0f,
+			FColor::Yellow, 
+			TEXT("은신 해제!"));
 	}
 	bIsStealthCooldown = true;
 
-	GetWorldTimerManager().SetTimer(StealthTimerHandle, this, &AABaseCharacter::StealthCoolDown, 3.0f, false);
+	GetWorldTimerManager().SetTimer(
+		StealthTimerHandle,
+		this,
+		&AABaseCharacter::StealthCoolDown,
+		3.0f,
+		false);
 }
 
 void AABaseCharacter::StealthCoolDown()
@@ -563,6 +577,6 @@ void AABaseCharacter::StealthCoolDown()
 //void hit();
 
 //void UpdateHp()
-//{
+//{	
 //	if()
 //}
