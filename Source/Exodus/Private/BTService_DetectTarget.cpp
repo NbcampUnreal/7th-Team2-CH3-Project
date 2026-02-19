@@ -10,7 +10,7 @@ UBTService_DetectTarget::UBTService_DetectTarget()
 {
     NodeName = "Detect Target";
     Interval = 0.5f;     
-    RandomDeviation = 0.f;
+    RandomDeviation = 0.f;  
 }
 
 void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
