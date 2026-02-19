@@ -4,7 +4,11 @@ Build/
 DerivedDataCache/
 Intermediate/
 Saved/
-Collections/
+Fab/
+ParagonRevenant/
+ParagonSevarog/
+Necropolis/
+Plugins/Developer/RiderLink/
 
 *.sln
 *.suo
