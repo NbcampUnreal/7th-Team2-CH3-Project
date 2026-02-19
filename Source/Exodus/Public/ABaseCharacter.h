@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
+#include "Grenade.h"
 #include "ABaseCharacter.generated.h"
 
 class USpringArmComponent;
@@ -79,7 +80,7 @@ public:
 	void Look(const FInputActionValue& Value);
 
 	UFUNCTION()
-	void StartSpirnt(const FInputActionValue& Value);
+	void StartSprint(const FInputActionValue& Value);
 
 	UFUNCTION()
 	void StopSprint(const FInputActionValue& Value);
@@ -93,11 +94,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Reload();
 
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void Stealth(bool bIsForce);
 	//공격력
 	int32 Attack;
 
 	// 데미지 처리
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual float TakeDamage(
+		float DamageAmount,
+		struct FDamageEvent const& DamageEvent,
+		class AController* EventInstigator,
+		AActor* DamageCauser) override;
 
 	//라인트레이서 변수들
 	FHitResult Hit;
@@ -116,11 +123,33 @@ public:
 	
 	//상태
 	bool bIsSprint;
+	bool bIsReloading;
+	bool bIsStealthMode;
 	
 	//스테미나 
 	FTimerHandle StaminaTimerHandle;
 	float Stamina;
 	float MaxStamina;
 	void UpdateStamina();
+	
+	//수류탄
+	UPROPERTY(EditAnywhere, Category = "Grenade")
+	TSubclassOf<class AGrenade> GrenadeClass;
+	void LaunchGrenade();
+	FTimerHandle LaunchTimerHandle;
+	float LaunchTimer;
+	bool bCanLaunch;
+	void bLaunch();
+	int32 GrenadeCount;
+	
+	
+	float GetCurrentHp(){return CurrentHP;}
+	//은신 딜레이
+	FTimerHandle StealthTimerHandle;
+	void StealthCoolDown();
+	
+	bool bIsStealthCooldown = false;
+	
+	TArray<class UMaterialInstanceDynamic*> CharacterMaterials;
 	//void UpdateHp();
 };

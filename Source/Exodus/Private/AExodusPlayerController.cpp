@@ -11,6 +11,8 @@ AAExodusPlayerController::AAExodusPlayerController() :
 	, SprintAction(nullptr)
 	, FireAction(nullptr)
 	, ReloadAction(nullptr)
+	,ThrowGrenadeAction(nullptr)
+	,StealthAction(nullptr)
 {
 
 }

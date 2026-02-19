@@ -37,6 +37,12 @@ public:
 
 	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input") 
 	UInputAction* ReloadAction;
-
+	
+	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
+	UInputAction* ThrowGrenadeAction;
+	
+	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
+	UInputAction* StealthAction;
+	
 	virtual void BeginPlay() override;
 };
