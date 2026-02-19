@@ -64,7 +64,10 @@ AABaseCharacter::AABaseCharacter()
 	//수류탄	
 	GrenadeClass = nullptr;
 	GrenadeCount = 5;
+
+	weapon_l = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Weapon_l"));
 }
+
 
 // 이벤트 시작시
 //체력과 총알을 초기화해주고
@@ -72,6 +75,17 @@ void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (weapon_l && GetMesh())
+	{
+		FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
+
+		// 소켓 이름을 다시 한번 확인하세요! 대소문자까지 똑같아야 합니다. [cite: 2026-02-18]
+		weapon_l->AttachToComponent(GetMesh(), AttachmentRules, TEXT("hand_lSocket_0"));
+
+		// 강제로 위치를 0으로 세팅 (혹시 모를 오차 방지) [cite: 2026-02-19]
+		weapon_l->SetRelativeLocation(FVector::ZeroVector);
+		weapon_l->SetRelativeRotation(FRotator::ZeroRotator);
+	}
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
 

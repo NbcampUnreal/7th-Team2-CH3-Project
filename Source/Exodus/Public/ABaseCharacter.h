@@ -58,6 +58,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentReserveAmmo;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	class USkeletalMeshComponent* weapon_l;
+
 public:
 	virtual void Tick(float DeltaTime) override;
 
