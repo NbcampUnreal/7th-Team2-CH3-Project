@@ -5,6 +5,7 @@
 AMonsterBase::AMonsterBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	Tags.Add(FName("Monster"));
 }
 
 void AMonsterBase::BeginPlay()
@@ -35,7 +36,14 @@ void AMonsterBase::ReceiveDamage(float DamageAmount)
 bool AMonsterBase::CanAttack(AActor* Target) const
 {
 	if (!Target || bIsDead)
+	{
 		return false;
+	}
+
+	if (!Target->ActorHasTag(TEXT("Player")))
+	{
+		return false;
+	}
 
 	float Distance = FVector::Dist(GetActorLocation(), Target->GetActorLocation());
 	return Distance <= AttackRange;
