@@ -466,6 +466,7 @@ void AABaseCharacter::LaunchGrenade()
 		if (SpwanedGrenade)
 		{
 			GrenadeCount--;
+			
 			//수류탄의 물리엔진을가져온다
 			UProjectileMovementComponent* ProjectileComp = SpwanedGrenade->GetProjectileMovement();
 			//루트 컴포넌트를 조작하기위한 형변환
@@ -486,24 +487,64 @@ void AABaseCharacter::LaunchGrenade()
 			// 프로젝트컴프가 존재한다면
 			if (ProjectileComp)
 			{
-				//엑터의 움직임을 멈추고 물리계산을 초기화
+				// 물리엔진 초기화
 				ProjectileComp->StopMovementImmediately();
-				//발사되는 순간의속도
-				ProjectileComp->InitialSpeed = 1500.f;
-				// 최고속도
-				ProjectileComp->MaxSpeed = 1500.f;
-				// 날아가가는 방향 즉 엑터가 생성될때의 회전값을 받음
-				FVector LaunchDirection = SpawnRotation.Vector();
-				// 방향에 z축만큼 0.5 더함
-				LaunchDirection += FVector(0.f, 0.f, 0.5f);
-				// 길이를  1로 해서 방향정보만남김
-				LaunchDirection.Normalize();
-				//방향 * 힘의크기를 곱해서  벡터값을구함 
-				ProjectileComp->Velocity = LaunchDirection * ProjectileComp->InitialSpeed;
-				// 컴포넌트에 즉시 반영
+
+			//변수 생성
+				FVector CameraLoc;
+				FRotator CameraRot;
+				//카메라 위치 담는코드
+				GetController()->GetPlayerViewPoint(CameraLoc, CameraRot);
+				// 라인트레이서함수에 사용할 변수들
+				FHitResult GrenadeHit;
+				FVector Start = CameraLoc;
+				FVector End = Start + (CameraRot.Vector() * 10000.f);
+				FCollisionQueryParams TraceParams;
+				TraceParams.AddIgnoredActor(this);
+    
+				FVector TargetLocation;
+				//라인트레이서가 성공했다면
+				if (GetWorld()->LineTraceSingleByChannel(GrenadeHit, Start, End, ECC_Visibility, TraceParams))
+				{
+					// 수류탄이 부딪힌 지점
+					TargetLocation = GrenadeHit.ImpactPoint;
+				}
+				else
+				{
+					//그냥끝까지만감
+					TargetLocation = End;
+				}
+    
+			//위에 라인트레이서 결과값에서 엑터 스폰위치를빼면 방향이나옴?
+				FVector LaunchDir = (TargetLocation - SpawnLocation).GetSafeNormal();
+				//방향 계산
+				LaunchDir += FVector(0.f, 0.f, 0.2f); 
+				LaunchDir.Normalize();
+				
+				//던지는 속도
+				float ThrowSpeed = 1500.f; 
+    
+			
+				ProjectileComp->InitialSpeed = ThrowSpeed;
+				ProjectileComp->MaxSpeed = ThrowSpeed;
+				// 방향하고 속도
+				ProjectileComp->Velocity = LaunchDir * ThrowSpeed;
+    
+				// 강제로 벡터값 업데이트
 				ProjectileComp->UpdateComponentVelocity();
-				//수류탄의 컴포넌트를 활성화시켜서 날아가게만듬
+				//틱함수 활성화해서 틱마다 수류탄 위치 업데이트
+				ProjectileComp->SetComponentTickEnabled(true);
+				// 컴포넌트활성화해서 날라가게함
 				ProjectileComp->Activate(true);
+
+				
+				if (RootPrimitive)
+				{
+					//물리시뮬레이션끔
+					RootPrimitive->SetSimulatePhysics(false);
+					// 자기자신과의 충돌무시
+					RootPrimitive->IgnoreActorWhenMoving(this, true);
+				}
 			}
 		}
 		if (bIsStealthMode)
