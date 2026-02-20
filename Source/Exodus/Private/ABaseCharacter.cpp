@@ -72,7 +72,7 @@ AABaseCharacter::AABaseCharacter()
 void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
 
@@ -100,21 +100,23 @@ void AABaseCharacter::BeginPlay()
 }
 
 // 데미지 처리                      //데미지 값, 데미지이벤트는 무슨공격에맞았냐? 이벤트 인스티게이터 상대Target , 맞은도구????
-float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
-                                  AActor* DamageCauser)
+float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	UE_LOG(LogTemp, Warning, TEXT("TakeDamage 함수 진입! 들어온 데미지: %f"), DamageAmount); 
+
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-
-	if (ActualDamage <= 0.0f) return 0.0f;
-
+	
+	if (ActualDamage <= 0.0f) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("데미지가 0이거나 음수로 들어왔습니다!"));
+		return 0.0f;
+	}
 	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
-	UE_LOG(LogTemp, Warning, TEXT("피격! 남은 체력: %.1f"), CurrentHP);
-
+	UE_LOG(LogTemp, Warning, TEXT("데미지 적용 성공! 남은 HP: %f"), CurrentHP);
 	if (CurrentHP <= 0.0f)
 	{
 		UE_LOG(LogTemp, Error, TEXT("캐릭터 사망!"));
 	}
-
 	return ActualDamage;
 }
 
@@ -125,8 +127,9 @@ void AABaseCharacter::Fire()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
 		PlayAnimMontage(FireMontage);
+		float PlayTime = FireMontage->GetPlayLength();
 	}
-	
+
 	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 
@@ -174,12 +177,13 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 {
 	if (!bCanFire) { return; }
 	bCanFire = false;
-	float FireRate = 0.5;
+	float FireRate = 0.7;
 	GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &AABaseCharacter::ResultFire, FireRate, false);
 	if (CurrentClip <= 0)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,
-		                                 FString::Printf(TEXT("탄약부족 재장전 (R)이 필요합니다. 남은 탄약:%d/%d"), CurrentClip, MaxClip));
+		                                 FString::Printf(
+			                                 TEXT("탄약부족 재장전 (R)이 필요합니다. 남은 탄약:%d/%d"), CurrentClip, MaxClip));
 		return;
 	}
 
@@ -203,8 +207,9 @@ void AABaseCharacter::Reload()
 {
 	if (ReloadMontage)
 	{
+		float fastanim = 1.6f;
 		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
-		PlayAnimMontage(ReloadMontage);
+		PlayAnimMontage(ReloadMontage, fastanim);
 	}
 	if (bIsReloading || CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
 	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
@@ -382,7 +387,7 @@ void AABaseCharacter::StartJump(const FInputActionValue& Value)
 void AABaseCharacter::StopJump(const FInputActionValue& Value)
 {
 	if (Value.Get<bool>())
-	{	
+	{
 		StopJumping();
 	}
 }
@@ -440,16 +445,29 @@ void AABaseCharacter::LaunchGrenade()
 	//수류탄을 던진상태인가? 맞다면 리턴
 	if (!bCanLaunch) { return; }
 	// 던지고나면 FALSE로 수정
-	
-	if (GrenadeMontage)
+	if (GrenadeClass && GrenadeCount > 0)
 	{
-		PlayAnimMontage(GrenadeMontage);
-		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
-	}
-	
-	bCanLaunch = false;
+		if (GrenadeMontage)
+		{
+			float fastanim = 1.6f;
+			PlayAnimMontage(GrenadeMontage, fastanim);
+			UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
+		}
+		bCanLaunch = false;
 
-	//수류탄이 있다면
+		GetWorld()->GetTimerManager().SetTimer(
+			LaunchTimerHandle,
+			this,
+			&AABaseCharacter::RealLaunch,
+			1.0f,
+			false
+		);
+	}
+}
+
+void AABaseCharacter::RealLaunch()
+{
+	//수류탄이있다면
 	if (GrenadeClass && GrenadeCount > 0)
 	{
 		// 스폰 로케이션에 메쉬의 스켈레톤 메쉬의 hand_r 에있는 위치르 를가져오고
@@ -471,7 +489,7 @@ void AABaseCharacter::LaunchGrenade()
 		if (SpwanedGrenade)
 		{
 			GrenadeCount--;
-			
+
 			//수류탄의 물리엔진을가져온다
 			UProjectileMovementComponent* ProjectileComp = SpwanedGrenade->GetProjectileMovement();
 			//루트 컴포넌트를 조작하기위한 형변환
@@ -495,7 +513,7 @@ void AABaseCharacter::LaunchGrenade()
 				// 물리엔진 초기화
 				ProjectileComp->StopMovementImmediately();
 
-			//변수 생성
+				//변수 생성
 				FVector CameraLoc;
 				FRotator CameraRot;
 				//카메라 위치 담는코드
@@ -506,7 +524,7 @@ void AABaseCharacter::LaunchGrenade()
 				FVector End = Start + (CameraRot.Vector() * 10000.f);
 				FCollisionQueryParams TraceParams;
 				TraceParams.AddIgnoredActor(this);
-    
+
 				FVector TargetLocation;
 				//라인트레이서가 성공했다면
 				if (GetWorld()->LineTraceSingleByChannel(GrenadeHit, Start, End, ECC_Visibility, TraceParams))
@@ -519,22 +537,22 @@ void AABaseCharacter::LaunchGrenade()
 					//그냥끝까지만감
 					TargetLocation = End;
 				}
-    
-			//위에 라인트레이서 결과값에서 엑터 스폰위치를빼면 방향이나옴?
+
+				//위에 라인트레이서 결과값에서 엑터 스폰위치를빼면 방향이나옴?
 				FVector LaunchDir = (TargetLocation - SpawnLocation).GetSafeNormal();
 				//방향 계산
-				LaunchDir += FVector(0.f, 0.f, 0.3f); 
+				LaunchDir += FVector(0.f, 0.f, 0.3f);
 				LaunchDir.Normalize();
-				
+
 				//던지는 속도
-				float ThrowSpeed = 1500.f; 
-    
-			
+				float ThrowSpeed = 1500.f;
+
+
 				ProjectileComp->InitialSpeed = ThrowSpeed;
 				ProjectileComp->MaxSpeed = ThrowSpeed;
 				// 방향하고 속도
 				ProjectileComp->Velocity = LaunchDir * ThrowSpeed;
-    
+
 				// 강제로 벡터값 업데이트
 				ProjectileComp->UpdateComponentVelocity();
 				//틱함수 활성화해서 틱마다 수류탄 위치 업데이트
@@ -542,7 +560,7 @@ void AABaseCharacter::LaunchGrenade()
 				// 컴포넌트활성화해서 날라가게함
 				ProjectileComp->Activate(true);
 
-				
+
 				if (RootPrimitive)
 				{
 					//물리시뮬레이션끔
@@ -557,17 +575,6 @@ void AABaseCharacter::LaunchGrenade()
 			Stealth(true);
 		}
 	}
-
-	// if (SpwanedGrenade)
-	// {
-	// 	FVector LaunchDirection = SpawnRotation.Vector();
-	// 	float ThrowSpeed = 1500.f;
-	// 	SpwanedGrenade->GetProjectileMovement()->Velocity = LaunchDirection * ThrowSpeed;
-	// 	if (GEngine)
-	// 	{
-	// 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red,TEXT("수류탄 생성"));
-	// 	}
-	// }
 }
 
 
@@ -598,9 +605,9 @@ void AABaseCharacter::Stealth(bool bIsForce)
 			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1,
-			2.0f,
-			FColor::Cyan,
-			TEXT("은신 활성화!"));
+		                                 2.0f,
+		                                 FColor::Cyan,
+		                                 TEXT("은신 활성화!"));
 	}
 	else
 	{
@@ -615,9 +622,9 @@ void AABaseCharacter::Stealth(bool bIsForce)
 			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1,
-			2.0f,
-			FColor::Yellow, 
-			TEXT("은신 해제!"));
+		                                 2.0f,
+		                                 FColor::Yellow,
+		                                 TEXT("은신 해제!"));
 	}
 	bIsStealthCooldown = true;
 
