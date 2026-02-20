@@ -36,7 +36,7 @@ AABaseCharacter::AABaseCharacter()
 	//이동속도
 
 	NomalSpeed = 360.f;
-	SprintSpeedMultiplier = 1.75;
+	SprintSpeedMultiplier = 2.0f;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
 	//체력
@@ -134,6 +134,12 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 // 사격
 void AABaseCharacter::Fire()
 {
+	if (FireMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
+		PlayAnimMontage(FireMontage);
+	}
+	
 	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 
@@ -208,6 +214,11 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 // 재장전
 void AABaseCharacter::Reload()
 {
+	if (ReloadMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
+		PlayAnimMontage(ReloadMontage);
+	}
 	if (bIsReloading || CurrentClip >= MaxClip || CurrentReserveAmmo <= 0) return;
 	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
 
@@ -442,6 +453,13 @@ void AABaseCharacter::LaunchGrenade()
 	//수류탄을 던진상태인가? 맞다면 리턴
 	if (!bCanLaunch) { return; }
 	// 던지고나면 FALSE로 수정
+	
+	if (GrenadeMontage)
+	{
+		PlayAnimMontage(GrenadeMontage);
+		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
+	}
+	
 	bCanLaunch = false;
 
 	//수류탄이 있다면
@@ -518,7 +536,7 @@ void AABaseCharacter::LaunchGrenade()
 			//위에 라인트레이서 결과값에서 엑터 스폰위치를빼면 방향이나옴?
 				FVector LaunchDir = (TargetLocation - SpawnLocation).GetSafeNormal();
 				//방향 계산
-				LaunchDir += FVector(0.f, 0.f, 0.2f); 
+				LaunchDir += FVector(0.f, 0.f, 0.3f); 
 				LaunchDir.Normalize();
 				
 				//던지는 속도
