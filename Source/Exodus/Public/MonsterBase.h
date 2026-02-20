@@ -4,6 +4,8 @@
 #include "GameFramework/Character.h"
 #include "MonsterBase.generated.h"
 
+class AABaseCharacter;
+
 UCLASS()
 class EXODUS_API AMonsterBase : public ACharacter
 {
@@ -28,12 +30,12 @@ protected:
 public:
 
 	UFUNCTION(BlueprintCallable)
-	float GetHp() const;
+	int32 GetHp() const;
 
 	void SetHp(int32 NewHp);
 
 	UFUNCTION(BlueprintCallable)
-	void ReceiveDamage(float DamageAmount);
+	void ReceiveDamage(int32 DamageAmount);
 
 	bool IsDead() const { return bIsDead; }
 
