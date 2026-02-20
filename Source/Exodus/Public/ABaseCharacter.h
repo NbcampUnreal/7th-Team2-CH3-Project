@@ -26,7 +26,7 @@ public:
 	
 	AABaseCharacter();
 	
-	float SetHp() {return CurrentHP;}
+	void SetHp(int32 NewHp) { CurrentHP = NewHp; }
 protected:
 	virtual void BeginPlay() override;
 
@@ -67,8 +67,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentReserveAmmo;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	class USkeletalMeshComponent* weapon_l;
+	
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -77,6 +76,8 @@ public:
 //위젯함수들
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UUserWidget> WBP_CrossLine;
+	
+	int32 GetHp(){return CurrentHP;}
 	
 	UPROPERTY()
 	UUserWidget* CrossLine;
