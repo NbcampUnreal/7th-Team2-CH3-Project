@@ -163,8 +163,8 @@ void AABaseCharacter::Fire()
 			AMonsterBase* Monster = Cast<AMonsterBase>(hitAttcor);
 			if (Monster)
 			{
-			int32 NewHp =Monster->GetHp() - 20;
-				Monster->SetHp(NewHp);
+				Monster->ReceiveDamage(20);
+				UE_LOG(LogTemp, Warning, TEXT("몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
 			}
 		}
 	}

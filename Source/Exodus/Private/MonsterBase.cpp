@@ -1,6 +1,7 @@
 ﻿#include "MonsterBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
+#include "ABaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "TimerManager.h"
@@ -17,12 +18,12 @@ void AMonsterBase::BeginPlay()
 	CurrentHP = MaxHP;
 }
 
-float AMonsterBase::GetHp() const
+int32 AMonsterBase::GetHp() const
 {
 	return CurrentHP;
 }
 
-void AMonsterBase::ReceiveDamage(float DamageAmount)
+void AMonsterBase::ReceiveDamage(int32 DamageAmount)
 {
 	if (bIsDead) return;
 
@@ -77,6 +78,7 @@ bool AMonsterBase::PerformAttack(AActor* Target)
 		this,
 		nullptr
 	);
+	
 
 	// 쿨타임 시작
 	GetWorldTimerManager().SetTimer(
