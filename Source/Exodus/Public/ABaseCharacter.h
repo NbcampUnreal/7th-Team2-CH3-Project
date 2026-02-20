@@ -78,7 +78,7 @@ public:
 	TSubclassOf<UUserWidget> WBP_CrossLine;
 	
 	int32 GetHp(){return CurrentHP;}
-	
+	void RealLaunch();
 	UPROPERTY()
 	UUserWidget* CrossLine;
 //액션함수들
