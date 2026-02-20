@@ -32,7 +32,7 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
         OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter); 
     }
     else
-    { 
+    {   
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName); 
     }
 }

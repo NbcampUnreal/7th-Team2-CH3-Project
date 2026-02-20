@@ -17,10 +17,10 @@ protected:
 
 	
 
-	UPROPERTY(EditAnywhere, Category = "Stats")
+	UPROPERTY(EditAnywhere,BluePrintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float CurrentHP;
 
 	bool bIsDead = false;
@@ -45,6 +45,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TObjectPtr<UAnimMontage> AttackMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TObjectPtr<UAnimMontage> HitMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TObjectPtr<UAnimMontage> DeathMontage;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackCooldown = 2.f;

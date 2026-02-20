@@ -28,6 +28,11 @@ void AMonsterBase::ReceiveDamage(float DamageAmount)
 
 	CurrentHP -= DamageAmount;
 
+	if (HitMontage && CurrentHP > 0.f)
+	{
+		PlayAnimMontage(HitMontage);
+	}
+
 	if (CurrentHP <= 0.f)
 	{
 		CurrentHP = 0.f;
@@ -96,6 +101,11 @@ void AMonsterBase::Die()
 
 	bIsDead = true;
 
+	if (DeathMontage)
+	{
+		PlayAnimMontage(DeathMontage);
+	}
+
 	StopAnimMontage();
 
 	// 이동 정지
@@ -120,7 +130,9 @@ void AMonsterBase::Die()
 		&AMonsterBase::DestroyAfterDeath,
 		3.f,
 		false
+
 	);
+
 }
 
 void AMonsterBase::DestroyAfterDeath()
