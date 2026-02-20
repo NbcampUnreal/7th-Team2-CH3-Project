@@ -106,7 +106,6 @@ void AMonsterBase::Die()
 		PlayAnimMontage(DeathMontage);
 	}
 
-	StopAnimMontage();
 
 	// 이동 정지
 	if (GetCharacterMovement())
@@ -121,7 +120,7 @@ void AMonsterBase::Die()
 	}
 
 	// AI 분리
-	DetachFromControllerPendingDestroy();
+	//DetachFromControllerPendingDestroy();
 
 	// 3초 후 제거 (죽는 모션 보여주기용)
 	GetWorldTimerManager().SetTimer(
@@ -138,4 +137,9 @@ void AMonsterBase::Die()
 void AMonsterBase::DestroyAfterDeath()
 {
 	Destroy();
+}
+
+void AMonsterBase::SetHp(int32 NewHp)
+{
+	CurrentHP = NewHp;
 }

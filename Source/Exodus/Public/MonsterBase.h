@@ -30,6 +30,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetHp() const;
 
+	void SetHp(int32 NewHp);
+
 	UFUNCTION(BlueprintCallable)
 	void ReceiveDamage(float DamageAmount);
 
