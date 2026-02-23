@@ -76,6 +76,9 @@ AABaseCharacter::AABaseCharacter()
 	MuzzleSocketNames.Add(TEXT("gun_pinSocket_2"));
 
 	CurrentOverlappedItem = nullptr;
+	// 죽음
+	bIsdie = false;
+	bIsDead = false;
 }
 
 
@@ -234,19 +237,17 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 
 		if (TrailComp)
 		{
-			float speed = 1000.f;
+			float speed = 7000.f;
 			FVector LaunchVelocity = ToTarget.GetSafeNormal() * speed;
 			float Distance = ToTarget.Size();
-			// 2. 에셋 내부의 속도 파라미터 강제 설정
-			// 아까 확인한 에셋의 'Initial Velocity' 모듈이 이 이름을 받습니다.
+			
 			TrailComp->Activate(true);
 
 			TrailComp->SetVectorParameter(FName("Velocity"), LaunchVelocity);
 			TrailComp->bAutoDestroy = true;
 
 			float TimeToHit = Distance / speed;
-			// 2. [치트키] 컴포넌트를 1초 뒤에 월드에서 삭제하도록 타이머를 겁니다.
-			// SetLifeSpan은 액터용이라 안되니, 아래 함수를 사용하세요.
+			
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [TrailComp]()
 			{
@@ -361,7 +362,10 @@ void AABaseCharacter::Tick(float DeltaTime)
 	{
 		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
 	}
-
+	if (bIsDead)
+	{
+		Die();	
+	}
 	if (bIsStealthMode)
 	{
 		Stamina -= 10 * DeltaTime;
@@ -812,6 +816,29 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 	}
 }
 
+void AABaseCharacter::Die()
+{
+	GetController()->StopMovement();
+	DisableInput(Cast<APlayerController>(GetController())); 
+
+
+	GetCharacterMovement()->DisableMovement();
+	if (DieMontage)
+	{
+		PlayAnimMontage(DieMontage);
+	}
+}
+
+void AABaseCharacter::ReceiveDamage(int32 DamageAmount)
+{
+	CurrentHP -= DamageAmount;
+	
+	if (CurrentHP <= 0.f)
+	{
+		CurrentHP = 0.f;
+		Die();
+	}
+}
 //void hit();
 
 //void UpdateHp()

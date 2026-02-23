@@ -56,6 +56,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* FireMontage;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* DieMontage;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 
@@ -151,7 +154,13 @@ public:
 	void SetWeaponOpacity1(float opacity);
 	
 	int32 Attack;
-
+	//죽었나?
+	bool bIsdie;
+	void Die();
+	
+	UFUNCTION(BlueprintCallable,Category="Grenade")
+	void ReceiveDamage(int32 DamageAmount);
+	
 	// 데미지 처리
 	virtual float TakeDamage(
 		float DamageAmount,
@@ -178,6 +187,8 @@ public:
 	bool bIsSprint;
 	bool bIsReloading;
 	bool bIsStealthMode;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Status");
+	bool bIsDead;
 	
 	//스테미나 
 	FTimerHandle StaminaTimerHandle;
