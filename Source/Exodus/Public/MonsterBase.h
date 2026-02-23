@@ -37,6 +37,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ReceiveDamage(int32 DamageAmount);
 
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	bool PerformAttack(AActor* Target);
+
 	bool IsDead() const { return bIsDead; }
 
 	
@@ -47,8 +50,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackDamage = 20.f;
 
-	UPROPERTY(EditAnywhere, Category = "Combat")
-	TObjectPtr<UAnimMontage> AttackMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	class UAnimMontage* AttackMontage;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TObjectPtr<UAnimMontage> HitMontage;
@@ -60,8 +63,6 @@ public:
 	float AttackCooldown = 2.f;
 
 	bool CanAttack(AActor* Target) const;
-
-	virtual bool PerformAttack(AActor* Target);
 
 	virtual void Die();
 
