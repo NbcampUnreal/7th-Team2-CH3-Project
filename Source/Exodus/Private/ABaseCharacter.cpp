@@ -16,7 +16,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
-
+#include "Components/SkeletalMeshComponent.h"
 
 AABaseCharacter::AABaseCharacter()
 {
@@ -100,7 +100,7 @@ bool AABaseCharacter::AddItemToInventory(AActor* NewItem)
 	NewItem->AttachToActor(this, FAttachmentTransformRules::KeepRelativeTransform);
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, FString::Printf(TEXT("%s 획득 완료!"), *NewItem->GetName()));
-	
+
 	return true;
 }
 
@@ -160,6 +160,11 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	if (CurrentHP <= 0.0f)
 	{
 		UE_LOG(LogTemp, Error, TEXT("캐릭터 사망!"));
+	}
+	if (CurrentHP <= 0)
+	{
+		CurrentHP = 0;
+		Die();
 	}
 	return ActualDamage;
 }
@@ -240,14 +245,14 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			float speed = 7000.f;
 			FVector LaunchVelocity = ToTarget.GetSafeNormal() * speed;
 			float Distance = ToTarget.Size();
-			
+
 			TrailComp->Activate(true);
 
 			TrailComp->SetVectorParameter(FName("Velocity"), LaunchVelocity);
 			TrailComp->bAutoDestroy = true;
 
 			float TimeToHit = Distance / speed;
-			
+
 			FTimerHandle TimerHandle;
 			GetWorldTimerManager().SetTimer(TimerHandle, [TrailComp]()
 			{
@@ -258,6 +263,8 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			}, TimeToHit, false);
 		}
 	}
+
+
 	if (Hit.bBlockingHit)
 	{
 		AActor* hitAttcor = Hit.GetActor();
@@ -362,10 +369,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	{
 		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
 	}
-	if (bIsDead)
-	{
-		Die();	
-	}
+	
 	if (bIsStealthMode)
 	{
 		Stamina -= 10 * DeltaTime;
@@ -782,7 +786,7 @@ void AABaseCharacter::OnItemActionPressed(const FInputActionValue& Value)
 		bool bSuccess = AddItemToInventory(CurrentOverlappedItem);
 		if (bSuccess)
 		{
-			UE_LOG(LogTemp, Log, TEXT("아이템 획득 성공!"));	
+			UE_LOG(LogTemp, Log, TEXT("아이템 획득 성공!"));
 		}
 	}
 }
@@ -818,27 +822,48 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 
 void AABaseCharacter::Die()
 {
-	GetController()->StopMovement();
-	DisableInput(Cast<APlayerController>(GetController())); 
-
-
-	GetCharacterMovement()->DisableMovement();
 	if (DieMontage)
 	{
-		PlayAnimMontage(DieMontage);
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		AnimInstance->Montage_Play(DieMontage);
 	}
+
+	//입력차단
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+	}
+	
+	//  이동 컴포넌트 즉시 정지
+	if (GetCharacterMovement())
+	{
+		// 바닥으로 떨어지는 관성까지 포함해 모든 움직임을 멈춤
+		GetCharacterMovement()->StopMovementImmediately();
+		// 이동 기능 자체를 비활성화
+		GetCharacterMovement()->DisableMovement();
+	}
+	
+	//컨트롤러와 캐릭터의 연결 끊기 (AI나 플레이어가 더 이상 제어 불가)
+	DetachFromControllerPendingDestroy();
+	FTimerHandle DeathTimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(DeathTimerHandle, FTimerDelegate::CreateLambda([this]()
+	{
+		if (GetMesh())
+		{
+			// 애니메이션 블루프린트 자체를 메쉬에서 떼어냅니다.
+			// 엔진에 "이제 이 메쉬는 애니메이션 안 써!"라고 못 박는 겁니다.
+			GetMesh()->SetAnimInstanceClass(nullptr); 
+
+			// 그 상태에서 틱을 끄면 현재 포즈(누운 상태)로 영구 박제됩니다.
+			GetMesh()->SetComponentTickEnabled(false);
+            
+			UE_LOG(LogTemp, Error, TEXT("Dante is Permanently Frozen as Gold!")); 
+		}
+	}), 1.5f, false);
+	bIsDead = true;	
 }
 
-void AABaseCharacter::ReceiveDamage(int32 DamageAmount)
-{
-	CurrentHP -= DamageAmount;
-	
-	if (CurrentHP <= 0.f)
-	{
-		CurrentHP = 0.f;
-		Die();
-	}
-}
+
 //void hit();
 
 //void UpdateHp()
