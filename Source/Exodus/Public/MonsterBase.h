@@ -62,9 +62,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackCooldown = 2.f;
 
+	UPROPERTY(EditAnywhere, Category = "Item")
+	TSubclassOf<AActor> DropItemClass;
+
 	bool CanAttack(AActor* Target) const;
 
 	virtual void Die();
+	void DropItem();
 
 protected:
 

@@ -1,5 +1,6 @@
 ﻿#include "MonsterBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Animation/AnimInstance.h"
 #include "ABaseCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -64,13 +65,11 @@ bool AMonsterBase::PerformAttack(AActor* Target)
 
 	bCanAttack = false;
 
-	// 몽타주 재생
 	if (AttackMontage)
 	{
 		PlayAnimMontage(AttackMontage);
 	}
 
-	// 실제 데미지 적용
 	float ActualDamage = UGameplayStatics::ApplyDamage(
 		Target,
 		AttackDamage,
@@ -78,9 +77,8 @@ bool AMonsterBase::PerformAttack(AActor* Target)
 		this,
 		nullptr
 	);
-	
 
-	// 쿨타임 시작
+
 	GetWorldTimerManager().SetTimer(
 		AttackCooldownTimer,
 		this,
@@ -108,23 +106,19 @@ void AMonsterBase::Die()
 		PlayAnimMontage(DeathMontage);
 	}
 
-
-	// 이동 정지
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->DisableMovement();
 	}
-
-	// 충돌 제거
+	
 	if (GetCapsuleComponent())
 	{
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	// AI 분리
-	//DetachFromControllerPendingDestroy();
+	DetachFromControllerPendingDestroy();
 
-	// 3초 후 제거 (죽는 모션 보여주기용)
+
 	GetWorldTimerManager().SetTimer(
 		DeathTimer,
 		this,
@@ -134,6 +128,7 @@ void AMonsterBase::Die()
 
 	);
 
+	DropItem();
 }
 
 void AMonsterBase::DestroyAfterDeath()
@@ -144,4 +139,29 @@ void AMonsterBase::DestroyAfterDeath()
 void AMonsterBase::SetHp(int32 NewHp)
 {
 	CurrentHP = NewHp;
+}
+
+void AMonsterBase::DropItem()
+{
+	if (!DropItemClass) return;
+
+	float RandomValue = FMath::FRandRange(0.0f, 100.0f);
+
+	if (RandomValue <= 5.0f)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = GetInstigator();
+
+		FVector SpawnLocation = GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
+		FRotator SpawnRotation = FRotator::ZeroRotator;
+
+		GetWorld()->SpawnActor<AActor>(DropItemClass, SpawnLocation, SpawnRotation, SpawnParams);
+
+		UE_LOG(LogTemp, Warning, TEXT("Item Dropped! (Prob: %.2f)"), RandomValue);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("No Item Dropped. (Prob: %.2f)"), RandomValue);
+	}
 }
