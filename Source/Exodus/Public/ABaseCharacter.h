@@ -26,6 +26,23 @@ public:
 	
 	AABaseCharacter();
 	
+	
+	// 인벤토리 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	TArray<AActor*> Inventory;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 MaxInventorySlots = 10;
+	
+	UFUNCTION(BlueprintCallable)
+	bool AddItemToInventory(AActor* NewItem);
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	class AActor* CurrentOverlappedItem;
+	
+	
+	
+	
 	void SetHp(int32 NewHp) { CurrentHP = NewHp; }
 protected:
 	virtual void BeginPlay() override;
@@ -70,8 +87,19 @@ protected:
 	
 
 public:
-	virtual void Tick(float DeltaTime) override;
+	// 총알 이펙트담음 배열들
+	TArray<FName> MuzzleSocketNames;
+	
+	UPROPERTY(EditAnywhere, Category = "Effects")
+	class UParticleSystem* MuzzleEffect;
 
+	UPROPERTY(EditAnywhere, Category = "Effects")
+	class UParticleSystem* TrailEffect;
+	
+	
+	
+	virtual void Tick(float DeltaTime) override;
+	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 //위젯함수들
 	UPROPERTY(EditAnywhere, Category = "UI")
@@ -104,14 +132,24 @@ public:
 	void StartFire(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void Fire();
+	void Fire(int32 SocketIndex);
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Reload();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Stealth(bool bIsForce);
+	
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void OnItemActionPressed(const FInputActionValue& Value);
+	
 	//공격력
+	UPROPERTY()
+	TArray<class UMaterialInstanceDynamic*> WeaponMaterials;
+	
+	void SetWeaponOpacity(float opacity);
+	void SetWeaponOpacity1(float opacity);
+	
 	int32 Attack;
 
 	// 데미지 처리
