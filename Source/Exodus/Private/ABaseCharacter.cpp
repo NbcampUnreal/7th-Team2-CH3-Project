@@ -43,7 +43,7 @@ AABaseCharacter::AABaseCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
 
 	//체력
-	MaxHP = 10.0f;
+	MaxHP = 10000000.0f;
 	CurrentHP = MaxHP;
 
 	//공격력	
@@ -52,11 +52,11 @@ AABaseCharacter::AABaseCharacter()
 	//스테미나	
 	MaxStamina = 100;
 	Stamina = MaxStamina;
-
+	
 	//총알	
 	MaxClip = 15;
 	CurrentClip = MaxClip;
-	CurrentReserveAmmo = 60;
+	CurrentReserveAmmo = 6000;
 
 	//상태	
 	bIsReloading = false;
@@ -172,32 +172,45 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 // 사격
 void AABaseCharacter::Fire(int32 SocketIndex)
 {
+	if (!MuzzleSocketNames.IsValidIndex(SocketIndex)) return;
 	FName TargetSocketName = MuzzleSocketNames[SocketIndex];
 
-	// 소켓 위치 가져옴
-	if (!MuzzleSocketNames.IsValidIndex(SocketIndex)) return;
-	FName TargetSocket = MuzzleSocketNames[SocketIndex];
-	FVector MuzzleLocation = GetMesh()->GetSocketLocation(TargetSocket);
-
-
+	// 1. [즉시] 이펙트는 버튼 누르자마자 0초 만에 터뜨림
 	if (MuzzleEffect)
 	{
-		UGameplayStatics::SpawnEmitterAttached(
-			MuzzleEffect,
-			GetMesh(),
-			TargetSocketName,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset
+		UParticleSystemComponent* MuzzleComp = UGameplayStatics::SpawnEmitterAttached(
+		   MuzzleEffect, GetMesh(), TargetSocketName,
+		   FVector::ZeroVector, FRotator::ZeroRotator,
+		   EAttachLocation::SnapToTargetIncludingScale
 		);
+
+		if (MuzzleComp)
+		{
+			// [해결] SetLifeSpan 대신 타이머를 사용하여 컴포넌트를 직접 파괴합니다.
+			FTimerHandle MuzzleTimerHandle;
+			GetWorldTimerManager().SetTimer(MuzzleTimerHandle, [MuzzleComp]()
+			{
+			   if (MuzzleComp && MuzzleComp->IsValidLowLevel())
+			   {
+				  MuzzleComp->DestroyComponent();
+			   }
+			}, 0.2f, false); // 0.2초 뒤에 삭제
+		}
 	}
 
-
-	if (FireMontage)
+	// 2. [미세 딜레이] 0.05초 뒤에 몽타주 재생 (타격감 조절 포인트)
+	FTimerHandle FireDelayHandle;
+	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
 	{
-		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
-		PlayAnimMontage(FireMontage);
-	}
+		if (FireMontage)
+		{
+			// 블렌드 인 시간을 0으로 해서 즉시 재생
+			PlayAnimMontage(FireMontage, 1.0f, NAME_None); 
+		}
+	}, 0.05f, false);
+	
+	FName TargetSocket = MuzzleSocketNames[SocketIndex];
+	FVector MuzzleLocation = GetMesh()->GetSocketLocation(TargetSocket);
 
 	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
