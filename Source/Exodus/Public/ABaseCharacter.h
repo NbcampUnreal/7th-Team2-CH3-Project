@@ -21,11 +21,44 @@ class AABaseCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
+	float CurrentHP;
+	
 	AABaseCharacter();
-
+	
+	
+	// 인벤토리 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+	TArray<AActor*> Inventory;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 MaxInventorySlots = 10;
+	
+	UFUNCTION(BlueprintCallable)
+	bool AddItemToInventory(AActor* NewItem);
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	class AActor* CurrentOverlappedItem;
+	
+	
+	
+	
+	void SetHp(int32 NewHp) { CurrentHP = NewHp; }
 protected:
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* GrenadeMontage;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* ReloadMontage;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* FireMontage;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	UAnimMontage* DieMontage;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 
@@ -44,8 +77,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
-	float CurrentHP;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxClip;
@@ -56,14 +87,29 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentReserveAmmo;
 
-public:
-	virtual void Tick(float DeltaTime) override;
+	
 
+public:
+	// 총알 이펙트담음 배열들
+	TArray<FName> MuzzleSocketNames;
+	
+	UPROPERTY(EditAnywhere, Category = "Effects")
+	class UParticleSystem* MuzzleEffect;
+
+	UPROPERTY(EditAnywhere, Category = "Effects")
+	class UParticleSystem* TrailEffect;
+	
+	
+	
+	virtual void Tick(float DeltaTime) override;
+	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 //위젯함수들
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UUserWidget> WBP_CrossLine;
 	
+	int32 GetHp(){return CurrentHP;}
+	void RealLaunch();
 	UPROPERTY()
 	UUserWidget* CrossLine;
 //액션함수들
@@ -89,16 +135,32 @@ public:
 	void StartFire(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void Fire();
+	void Fire(int32 SocketIndex);
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Reload();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void Stealth(bool bIsForce);
+	
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void OnItemActionPressed(const FInputActionValue& Value);
+	
 	//공격력
+	UPROPERTY()
+	TArray<class UMaterialInstanceDynamic*> WeaponMaterials;
+	
+	void SetWeaponOpacity(float opacity);
+	void SetWeaponOpacity1(float opacity);
+	
 	int32 Attack;
-
+	//죽었나?
+	bool bIsdie;
+	void Die();
+	
+	UFUNCTION(BlueprintCallable,Category="Grenade")
+	void ReceiveDamage(int32 DamageAmount);
+	
 	// 데미지 처리
 	virtual float TakeDamage(
 		float DamageAmount,
@@ -125,6 +187,8 @@ public:
 	bool bIsSprint;
 	bool bIsReloading;
 	bool bIsStealthMode;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Status");
+	bool bIsDead;
 	
 	//스테미나 
 	FTimerHandle StaminaTimerHandle;

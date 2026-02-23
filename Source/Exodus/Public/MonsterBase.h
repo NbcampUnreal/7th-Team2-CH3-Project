@@ -4,6 +4,8 @@
 #include "GameFramework/Character.h"
 #include "MonsterBase.generated.h"
 
+class AABaseCharacter;
+
 UCLASS()
 class EXODUS_API AMonsterBase : public ACharacter
 {
@@ -15,11 +17,12 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	
 
-	UPROPERTY(EditAnywhere, Category = "Stats")
+	UPROPERTY(EditAnywhere,BluePrintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
-	UPROPERTY(VisibleAnywhere, Category = "Stats")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float CurrentHP;
 
 	bool bIsDead = false;
@@ -27,13 +30,19 @@ protected:
 public:
 
 	UFUNCTION(BlueprintCallable)
-	float GetHp() const;
+	int32 GetHp() const;
+
+	void SetHp(int32 NewHp);
 
 	UFUNCTION(BlueprintCallable)
-	void ReceiveDamage(float DamageAmount);
+	void ReceiveDamage(int32 DamageAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	bool PerformAttack(AActor* Target);
 
 	bool IsDead() const { return bIsDead; }
 
+	
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackRange = 150.f;
@@ -41,11 +50,31 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackDamage = 20.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	class UAnimMontage* AttackMontage;
+
 	UPROPERTY(EditAnywhere, Category = "Combat")
-	TObjectPtr<UAnimMontage> AttackMontage;
+	TObjectPtr<UAnimMontage> HitMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float AttackCooldown = 2.f;
 
 	bool CanAttack(AActor* Target) const;
 
+	virtual void Die();
 
-	virtual bool PerformAttack(AActor* Target);
+protected:
+
+	bool bCanAttack = true;
+
+	FTimerHandle AttackCooldownTimer;
+
+	void ResetAttack();
+
+	FTimerHandle DeathTimer;
+
+	void DestroyAfterDeath();
 };

@@ -44,5 +44,8 @@ public:
 	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
 	UInputAction* StealthAction;
 	
+	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
+	UInputAction* GetItemAction;
+	
 	virtual void BeginPlay() override;
 };

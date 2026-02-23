@@ -8,5 +8,5 @@ class EXODUS_API ABossMonster : public AMonsterBase
 	GENERATED_BODY()
 
 public:
-	virtual bool PerformAttack(AActor* Target) override;
+	//virtual bool PerformAttack(AActor* Target) override;
 };

@@ -9,16 +9,19 @@
 UCLASS()
 class EXODUS_API UBTTask_Attack : public UBTTaskNode
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UBTTask_Attack();
-
-	virtual EBTNodeResult::Type ExecuteTask(
-		UBehaviorTreeComponent& OwnerComp,
-		uint8* NodeMemory) override;
+    UBTTask_Attack();
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "Blackboard")
-	FBlackboardKeySelector TargetKey;
+    virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+    virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+
+    UPROPERTY(EditAnywhere, Category = "Blackboard")
+    FBlackboardKeySelector TargetKey;
+
+private:
+    float AttackDuration = 0.0f;
+    float ElapsedTime = 0.0f;
 };
