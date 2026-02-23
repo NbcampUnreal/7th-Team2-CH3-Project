@@ -21,7 +21,7 @@ public class Exodus : ModuleRules
             "NavigationSystem",
             "GameplayStateTreeModule",
             "UMG",
-            "Slate"
+            "Slate", "Niagara"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

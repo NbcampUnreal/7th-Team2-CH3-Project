@@ -2,7 +2,6 @@
 // Copyright © 2026 비전공회담. All rights reserved.
 
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
@@ -10,6 +9,7 @@
 #include "CollisionQueryParams.h"
 #include "Grenade.h"
 #include "ABaseCharacter.generated.h"
+
 
 class USpringArmComponent;
 class UCameraComponent;
@@ -25,7 +25,6 @@ public:
 	float CurrentHP;
 	
 	AABaseCharacter();
-	
 	
 	// 인벤토리 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
@@ -99,6 +98,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	class UParticleSystem* TrailEffect;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
+	bool bIsDead;
 	
 	
 	virtual void Tick(float DeltaTime) override;
@@ -156,11 +157,9 @@ public:
 	int32 Attack;
 	//죽었나?
 	bool bIsdie;
+	UFUNCTION()
 	void Die();
-	
-	UFUNCTION(BlueprintCallable,Category="Grenade")
-	void ReceiveDamage(int32 DamageAmount);
-	
+	UFUNCTION()
 	// 데미지 처리
 	virtual float TakeDamage(
 		float DamageAmount,
@@ -187,8 +186,7 @@ public:
 	bool bIsSprint;
 	bool bIsReloading;
 	bool bIsStealthMode;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Status");
-	bool bIsDead;
+	
 	
 	//스테미나 
 	FTimerHandle StaminaTimerHandle;
