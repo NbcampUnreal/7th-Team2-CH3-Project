@@ -5,6 +5,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "MonsterBase.h"
 
 UBTService_DetectTarget::UBTService_DetectTarget()
 {
@@ -20,22 +22,37 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
     AAIController* AIController = OwnerComp.GetAIOwner();
     if (!AIController || !AIController->GetPawn()) return;
 
+    AMonsterBase* Monster = Cast<AMonsterBase>(AIController->GetPawn());
     ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+
     if (!PlayerCharacter)
     {
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
         return;
     }
 
-    float Distance = FVector::Dist(AIController->GetPawn()->GetActorLocation(), PlayerCharacter->GetActorLocation());
+    float Distance = FVector::Dist(Monster->GetActorLocation(), PlayerCharacter->GetActorLocation());
 
-    // 거리 체크 + 태그 체크 (태그는 에디터의 Character 본체에 "Player"라고 적혀있어야 함)
     if (Distance <= DetectRadius && PlayerCharacter->ActorHasTag(TEXT("Player")))
     {
+        if (Monster && !Monster->GetDetected())
+        {
+            Monster->SetDetected(true);
+
+            if (Monster->GetDetectSound())
+            {
+                UGameplayStatics::PlaySoundAtLocation(GetWorld(), Monster->GetDetectSound(), Monster->GetActorLocation());
+            }
+
+            Monster->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+        }
+
         OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
     }
     else
     {
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
+
+ if(Monster) { Monster->SetDetected(false); Monster->GetCharacterMovement()->MaxWalkSpeed = 200.f; }
     }
 }

@@ -1,4 +1,6 @@
 ﻿#include "MonsterBase.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Animation/AnimInstance.h"
@@ -11,6 +13,8 @@ AMonsterBase::AMonsterBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	Tags.Add(FName("Monster"));
+	GetCharacterMovement()->MaxWalkSpeed = 200.f;
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 360.f, 0.f);
 }
 
 void AMonsterBase::BeginPlay()
@@ -29,6 +33,22 @@ void AMonsterBase::ReceiveDamage(int32 DamageAmount)
 	if (bIsDead) return;
 
 	CurrentHP -= DamageAmount;
+
+	if (CurrentHP >= 0.f) 
+	{
+		FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+		FRotator SpawnRotation = GetActorRotation();
+
+		if (BloodNiagara)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BloodNiagara, SpawnLocation, SpawnRotation);
+		}
+
+		if (FleshNiagara)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), FleshNiagara, SpawnLocation, SpawnRotation);
+		}
+	}
 
 	if (HitMontage && CurrentHP > 0.f)
 	{
@@ -69,15 +89,20 @@ bool AMonsterBase::PerformAttack(AActor* Target)
 	{
 		PlayAnimMontage(AttackMontage);
 	}
+	float ActualDamage = 0;
+	FHitResult DummyHit;
+	DummyHit.ImpactPoint = Target->GetActorLocation();
+	DummyHit.ImpactNormal = (GetActorLocation() - Target->GetActorLocation()).GetSafeNormal();
 
-	float ActualDamage = UGameplayStatics::ApplyDamage(
+	ActualDamage = UGameplayStatics::ApplyPointDamage(
 		Target,
-		AttackDamage,
+		20,
+		GetActorForwardVector(),
+		DummyHit,
 		GetController(),
 		this,
 		nullptr
 	);
-
 
 	GetWorldTimerManager().SetTimer(
 		AttackCooldownTimer,
@@ -98,39 +123,56 @@ void AMonsterBase::ResetAttack()
 void AMonsterBase::Die()
 {
 	if (bIsDead) return;
-
 	bIsDead = true;
-
-	if (DeathMontage)
-	{
-		PlayAnimMontage(DeathMontage);
-	}
 
 	if (GetCharacterMovement())
 	{
+		GetCharacterMovement()->StopMovementImmediately();
 		GetCharacterMovement()->DisableMovement();
 	}
-	
+
+	if (GetController())
+	{
+		GetController()->UnPossess();
+	}
+
 	if (GetCapsuleComponent())
 	{
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
-	DetachFromControllerPendingDestroy();
+	if (DeathMontage)
+	{
+		float Duration = PlayAnimMontage(DeathMontage);
 
+		if (Duration > 0.f)
+		{
+			GetWorldTimerManager().SetTimer(
+				DeathTimer,
+				[this]()
+				{
+					if (GetMesh())
+					{
+						GetMesh()->bNoSkeletonUpdate = true;
+					}
+				},
+				Duration - 0.1f,
+				false
+			);
+		}
+	}
 
+	DropItem();
+
+	FTimerHandle DestroyTimerHandle;
 	GetWorldTimerManager().SetTimer(
-		DeathTimer,
+		DestroyTimerHandle,
 		this,
 		&AMonsterBase::DestroyAfterDeath,
 		3.f,
 		false
-
 	);
-
-	DropItem();
 }
-
 void AMonsterBase::DestroyAfterDeath()
 {
 	Destroy();
