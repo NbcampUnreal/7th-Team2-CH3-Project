@@ -17,9 +17,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	
 
-	UPROPERTY(EditAnywhere,BluePrintReadWrite, Category = "Stats")
+
+	UPROPERTY(EditAnywhere, BluePrintReadWrite, Category = "Stats")
 	float MaxHP = 100.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
@@ -42,7 +42,6 @@ public:
 
 	bool IsDead() const { return bIsDead; }
 
-	
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackRange = 150.f;
@@ -70,6 +69,10 @@ public:
 	virtual void Die();
 	void DropItem();
 
+	void SetDetected(bool bDetected) { bHasDetectedPlayer = bDetected; }
+	bool GetDetected() const { return bHasDetectedPlayer; }
+	class USoundBase* GetDetectSound() const { return DetectSound; }
+
 protected:
 
 	UPROPERTY(EditAnywhere, Category = "Combat|Niagara")
@@ -78,6 +81,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat|Niagara")
 	class UNiagaraSystem* FleshNiagara;
 
+	UPROPERTY(EditAnywhere, Category = "AI")
+	class USoundBase* DetectSound;
+
+	bool bHasDetectedPlayer = false;
+
+	float DefaultSpeed = 200.f;
+	float ChaseSpeed = 400.f;
+
 	bool bCanAttack = true;
 
 	FTimerHandle AttackCooldownTimer;
@@ -85,6 +96,7 @@ protected:
 	void ResetAttack();
 
 	FTimerHandle DeathTimer;
+	FTimerHandle DeathTimerHandle;
 
 	void DestroyAfterDeath();
 };
