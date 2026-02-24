@@ -10,6 +10,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/DamageEvents.h"
 //#include "DrawDebugHelpers.h"
 #include "Blueprint/UserWidget.h"
 #include "MonsterBase.h"
@@ -146,27 +147,40 @@ void AABaseCharacter::BeginPlay()
 float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
                                   AActor* DamageCauser)
 {
-	UE_LOG(LogTemp, Warning, TEXT("TakeDamage 함수 진입! 들어온 데미지: %f"), DamageAmount);
-
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	if (ActualDamage <= 0.0f)
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
-		UE_LOG(LogTemp, Error, TEXT("데미지가 0이거나 음수로 들어왔습니다!"));
-		return 0.0f;
+		const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+		
+		PlayHitEffect(PointDamageEvent->HitInfo);
 	}
+	
 	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
-	UE_LOG(LogTemp, Warning, TEXT("데미지 적용 성공! 남은 HP: %f"), CurrentHP);
-	if (CurrentHP <= 0.0f)
-	{
-		UE_LOG(LogTemp, Error, TEXT("캐릭터 사망!"));
-	}
+	
 	if (CurrentHP <= 0)
-	{
+	{	
 		CurrentHP = 0;
 		Die();
 	}
 	return ActualDamage;
+}
+void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
+{
+	UE_LOG(LogTemp, Warning, TEXT("이펙트 소환 시도! 좌표: %s"), *Hitd.ImpactPoint.ToString());
+	if (HitEffectSystem && GetWorld())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			HitEffectSystem,
+			Hitd.ImpactPoint,   
+			Hitd.ImpactNormal.Rotation() 
+		);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("이펙트 시스템이 할당되지 않았거나 월드가 없습니다!"));
+	}
 }
 
 // 사격
@@ -806,6 +820,8 @@ void AABaseCharacter::StealthCoolDown()
 {
 	bIsStealthCooldown = false;
 }
+
+
 
 void AABaseCharacter::SetWeaponOpacity(float NewOpacity)
 {
