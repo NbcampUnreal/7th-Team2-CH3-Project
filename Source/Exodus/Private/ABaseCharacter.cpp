@@ -153,7 +153,18 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	{
 		const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
 		
-		PlayHitEffect(PointDamageEvent->HitInfo);
+		FTimerHandle TimerHandle;
+		FHitResult HitInfo = PointDamageEvent->HitInfo; // 히트 정보를 캡처하기 위해 변수에 저장
+
+		GetWorldTimerManager().SetTimer(
+			TimerHandle, 
+			[this, HitInfo]() // 람다 내부에서 HitInfo를 사용하기 위해 복사 캡처
+			{
+				PlayHitEffect(HitInfo);
+			}, 
+			1.0f, 
+			false  
+		);
 	}
 	
 	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
@@ -167,7 +178,6 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 }
 void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 {
-	UE_LOG(LogTemp, Warning, TEXT("이펙트 소환 시도! 좌표: %s"), *Hitd.ImpactPoint.ToString());
 	if (HitEffectSystem && GetWorld())
 	{
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -176,10 +186,6 @@ void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 			Hitd.ImpactPoint,   
 			Hitd.ImpactNormal.Rotation() 
 		);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("이펙트 시스템이 할당되지 않았거나 월드가 없습니다!"));
 	}
 }
 
@@ -213,8 +219,7 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			}, 0.2f, false);
 		}
 	}
-
-	// 2. 0.05초 뒤에 몽타주 재생 (수정된 부분)
+	
 	FTimerHandle FireDelayHandle;
 	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
 	{
