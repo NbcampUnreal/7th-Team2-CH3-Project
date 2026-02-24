@@ -2,6 +2,8 @@
 // Copyright © 2026 비전공회담. All rights reserved.
 
 #pragma once
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
@@ -184,6 +186,7 @@ public:
 	
 	//상태
 	bool bIsSprint;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	bool bIsReloading;
 	bool bIsStealthMode;
 	
@@ -214,4 +217,12 @@ public:
 	
 	TArray<class UMaterialInstanceDynamic*> CharacterMaterials;
 	//void UpdateHp();
-};
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects")
+		UNiagaraSystem* HitEffectSystem;
+	
+	void PlayHitEffect(const FHitResult& Hitd);
+	
+	
+
+};		

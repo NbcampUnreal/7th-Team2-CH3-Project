@@ -10,6 +10,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/DamageEvents.h"
 //#include "DrawDebugHelpers.h"
 #include "Blueprint/UserWidget.h"
 #include "MonsterBase.h"
@@ -43,7 +44,7 @@ AABaseCharacter::AABaseCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
 
 	//체력
-	MaxHP = 10.0f;
+	MaxHP = 100.0f;
 	CurrentHP = MaxHP;
 
 	//공격력	
@@ -56,7 +57,7 @@ AABaseCharacter::AABaseCharacter()
 	//총알	
 	MaxClip = 15;
 	CurrentClip = MaxClip;
-	CurrentReserveAmmo = 60;
+	CurrentReserveAmmo = 300;
 
 	//상태	
 	bIsReloading = false;
@@ -146,27 +147,40 @@ void AABaseCharacter::BeginPlay()
 float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
                                   AActor* DamageCauser)
 {
-	UE_LOG(LogTemp, Warning, TEXT("TakeDamage 함수 진입! 들어온 데미지: %f"), DamageAmount);
-
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	if (ActualDamage <= 0.0f)
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
-		UE_LOG(LogTemp, Error, TEXT("데미지가 0이거나 음수로 들어왔습니다!"));
-		return 0.0f;
+		const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+		
+		PlayHitEffect(PointDamageEvent->HitInfo);
 	}
+	
 	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
-	UE_LOG(LogTemp, Warning, TEXT("데미지 적용 성공! 남은 HP: %f"), CurrentHP);
-	if (CurrentHP <= 0.0f)
-	{
-		UE_LOG(LogTemp, Error, TEXT("캐릭터 사망!"));
-	}
+	
 	if (CurrentHP <= 0)
-	{
+	{	
 		CurrentHP = 0;
 		Die();
 	}
 	return ActualDamage;
+}
+void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
+{
+	UE_LOG(LogTemp, Warning, TEXT("이펙트 소환 시도! 좌표: %s"), *Hitd.ImpactPoint.ToString());
+	if (HitEffectSystem && GetWorld())
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			HitEffectSystem,
+			Hitd.ImpactPoint,   
+			Hitd.ImpactNormal.Rotation() 
+		);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("이펙트 시스템이 할당되지 않았거나 월드가 없습니다!"));
+	}
 }
 
 // 사격
@@ -182,22 +196,33 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 
 	if (MuzzleEffect)
 	{
-		UGameplayStatics::SpawnEmitterAttached(
-			MuzzleEffect,
-			GetMesh(),
-			TargetSocketName,
-			FVector::ZeroVector,
-			FRotator::ZeroRotator,
-			EAttachLocation::KeepRelativeOffset
+		UParticleSystemComponent* MuzzleComp = UGameplayStatics::SpawnEmitterAttached(
+			MuzzleEffect, GetMesh(), TargetSocketName,
+			FVector::ZeroVector, FRotator::ZeroRotator,
+			EAttachLocation::SnapToTargetIncludingScale
 		);
+		if (MuzzleComp)
+		{
+			FTimerHandle MuzzleTimerHandle;
+			GetWorldTimerManager().SetTimer(MuzzleTimerHandle, [MuzzleComp]()
+			{
+				if (MuzzleComp && MuzzleComp->IsValidLowLevel())
+				{
+					MuzzleComp->DestroyComponent();
+				}
+			}, 0.2f, false);
+		}
 	}
 
-
-	if (FireMontage)
+	// 2. 0.05초 뒤에 몽타주 재생 (수정된 부분)
+	FTimerHandle FireDelayHandle;
+	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
 	{
-		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
-		PlayAnimMontage(FireMontage);
-	}
+		if (FireMontage)
+		{
+			PlayAnimMontage(FireMontage, 1.0f, NAME_None);
+		}
+	}, 0.05f, false);
 
 	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
@@ -369,7 +394,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	{
 		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
 	}
-	
+
 	if (bIsStealthMode)
 	{
 		Stamina -= 10 * DeltaTime;
@@ -796,6 +821,8 @@ void AABaseCharacter::StealthCoolDown()
 	bIsStealthCooldown = false;
 }
 
+
+
 void AABaseCharacter::SetWeaponOpacity(float NewOpacity)
 {
 	for (auto Mat : WeaponMaterials)
@@ -826,44 +853,46 @@ void AABaseCharacter::Die()
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		AnimInstance->Montage_Play(DieMontage);
-	}
+		GEngine->AddOnScreenDebugMessage(-1,
+										 2.0f,
+										 FColor::Yellow,
+										 TEXT("함수호출확인"));
 
-	//입력차단
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		DisableInput(PC);
-	}
-	
-	//  이동 컴포넌트 즉시 정지
-	if (GetCharacterMovement())
-	{
-		// 바닥으로 떨어지는 관성까지 포함해 모든 움직임을 멈춤
-		GetCharacterMovement()->StopMovementImmediately();
-		// 이동 기능 자체를 비활성화
-		GetCharacterMovement()->DisableMovement();
-	}
-	
-	//컨트롤러와 캐릭터의 연결 끊기 (AI나 플레이어가 더 이상 제어 불가)
-	DetachFromControllerPendingDestroy();
-	FTimerHandle DeathTimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(DeathTimerHandle, FTimerDelegate::CreateLambda([this]()
-	{
-		if (GetMesh())
+		//입력차단
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
-			// 애니메이션 블루프린트 자체를 메쉬에서 떼어냅니다.
-			// 엔진에 "이제 이 메쉬는 애니메이션 안 써!"라고 못 박는 겁니다.
-			GetMesh()->SetAnimInstanceClass(nullptr); 
-
-			// 그 상태에서 틱을 끄면 현재 포즈(누운 상태)로 영구 박제됩니다.
-			GetMesh()->SetComponentTickEnabled(false);
-            
-			UE_LOG(LogTemp, Error, TEXT("Dante is Permanently Frozen as Gold!")); 
+			DisableInput(PC);
 		}
-	}), 1.5f, false);
-	bIsDead = true;	
+
+		//  이동 컴포넌트 즉시 정지
+		if (GetCharacterMovement())
+		{
+			// 바닥으로 떨어지는 관성까지 포함해 모든 움직임을 멈춤
+			GetCharacterMovement()->StopMovementImmediately();
+			// 이동 기능 자체를 비활성화
+			GetCharacterMovement()->DisableMovement();
+		}
+
+		//컨트롤러와 캐릭터의 연결 끊기 (AI나 플레이어가 더 이상 제어 불가)
+		DetachFromControllerPendingDestroy();
+		FTimerHandle DeathTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(DeathTimerHandle, FTimerDelegate::CreateLambda([this]()
+		{
+			if (GetMesh())
+			{
+				// 애니메이션 블루프린트 자체를 메쉬에서 떼어냅니다.
+				// 엔진에 "이제 이 메쉬는 애니메이션 안 써!"라고 못 박는 겁니다.
+				GetMesh()->SetAnimInstanceClass(nullptr);
+
+				// 그 상태에서 틱을 끄면 현재 포즈(누운 상태)로 영구 박제됩니다.
+				GetMesh()->SetComponentTickEnabled(false);
+
+				UE_LOG(LogTemp, Error, TEXT("Dante is Permanently Frozen as Gold!"));
+			}
+		}), 1.5f, false);
+		bIsDead = true;
+	}
 }
-
-
 //void hit();
 
 //void UpdateHp()
