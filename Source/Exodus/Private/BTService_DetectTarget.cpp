@@ -44,7 +44,7 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
                 UGameplayStatics::PlaySoundAtLocation(GetWorld(), Monster->GetDetectSound(), Monster->GetActorLocation());
             }
 
-            Monster->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+            Monster->GetCharacterMovement()->MaxWalkSpeed = 100.f;
         }
 
         OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
@@ -53,6 +53,6 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
     {
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
 
- if(Monster) { Monster->SetDetected(false); Monster->GetCharacterMovement()->MaxWalkSpeed = 200.f; }
+ if(Monster) { Monster->SetDetected(false); Monster->GetCharacterMovement()->MaxWalkSpeed = 50.f; }
     }
 }
