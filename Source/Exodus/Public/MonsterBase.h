@@ -50,8 +50,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackDamage = 20.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
-	class UAnimMontage* AttackMontage;
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TObjectPtr<UAnimMontage> AttackMontage;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TObjectPtr<UAnimMontage> HitMontage;
@@ -71,6 +71,12 @@ public:
 	void DropItem();
 
 protected:
+
+	UPROPERTY(EditAnywhere, Category = "Combat|Niagara")
+	class UNiagaraSystem* BloodNiagara;
+
+	UPROPERTY(EditAnywhere, Category = "Combat|Niagara")
+	class UNiagaraSystem* FleshNiagara;
 
 	bool bCanAttack = true;
 

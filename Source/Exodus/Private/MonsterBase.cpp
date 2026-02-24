@@ -1,4 +1,6 @@
 ﻿#include "MonsterBase.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Animation/AnimInstance.h"
@@ -29,6 +31,22 @@ void AMonsterBase::ReceiveDamage(int32 DamageAmount)
 	if (bIsDead) return;
 
 	CurrentHP -= DamageAmount;
+
+	if (CurrentHP >= 0.f) 
+	{
+		FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+		FRotator SpawnRotation = GetActorRotation();
+
+		if (BloodNiagara)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), BloodNiagara, SpawnLocation, SpawnRotation);
+		}
+
+		if (FleshNiagara)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), FleshNiagara, SpawnLocation, SpawnRotation);
+		}
+	}
 
 	if (HitMontage && CurrentHP > 0.f)
 	{
