@@ -46,6 +46,9 @@ public:
 	
 	UPROPERTY(EditAnyWhere, BluePrintReadWrite, Category = "Input")
 	UInputAction* GetItemAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> HUDWidgetClass;
 	
 	virtual void BeginPlay() override;
 };

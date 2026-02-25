@@ -3,6 +3,8 @@
 
 #include "AExodusPlayerController.h"
 #include "EnhancedInputSubsystems.h"
+#include "Blueprint/UserWidget.h"
+
 AAExodusPlayerController::AAExodusPlayerController() :
 	InputMappingContext(nullptr),
 	MoveAction(nullptr)
@@ -28,6 +30,15 @@ void AAExodusPlayerController::BeginPlay()
 			{
 				Subsystem->AddMappingContext(InputMappingContext, 0);
 			}
+		}
+	}
+
+	if (HUDWidgetClass)
+	{
+		UUserWidget* HUDWidget = CreateWidget<UUserWidget>(this, HUDWidgetClass);
+		if (HUDWidget)
+		{
+			HUDWidget->AddToViewport();
 		}
 	}
 }
