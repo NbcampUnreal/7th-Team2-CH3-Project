@@ -60,6 +60,20 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* DieMontage;
 	
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	UAnimMontage* HitFrontMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	UAnimMontage* HitBackMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	UAnimMontage* HitLeftMontage;
+
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	UAnimMontage* HitRightMontage;
+	
+	
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 
@@ -212,7 +226,7 @@ public:
 	//은신 딜레이
 	FTimerHandle StealthTimerHandle;
 	void StealthCoolDown();
-	
+		
 	bool bIsStealthCooldown = false;
 	
 	TArray<class UMaterialInstanceDynamic*> CharacterMaterials;
