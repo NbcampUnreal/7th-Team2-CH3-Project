@@ -48,7 +48,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 20;
+	Attack = 30;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -115,14 +115,11 @@ void AABaseCharacter::BeginPlay()
 	CurrentClip = MaxClip;
 	if (GetMesh())
 	{
-		// 8번은 확실히 추가하고, 3번(Gun)과 6번(Glow)도 같이 넣어두면 안전합니다!
 		WeaponMaterials.Add(GetMesh()->CreateDynamicMaterialInstance(3));
-		//WeaponMaterials.Add(GetMesh()->CreateDynamicMaterialInstance(6));
-		//WeaponMaterials.Add(GetMesh()->CreateDynamicMaterialInstance(8));
 	}
-	//머테리얼 갯수 가져오기
+
 	int32 MaterialCount = GetMesh()->GetNumMaterials();
-	// 
+
 	for (int i = 0; i < MaterialCount; ++i)
 	{
 		UMaterialInstanceDynamic* DynMaterial = GetMesh()->CreateAndSetMaterialInstanceDynamic(i);
@@ -134,7 +131,6 @@ void AABaseCharacter::BeginPlay()
 		}
 	}
 
-
 	if (WBP_CrossLine)
 	{
 		CrossLine = CreateWidget<UUserWidget>(GetWorld(), WBP_CrossLine);
@@ -143,39 +139,108 @@ void AABaseCharacter::BeginPlay()
 	}
 }
 
-// 데미지 처리                      //데미지 값, 데미지이벤트는 무슨공격에맞았냐? 이벤트 인스티게이터 상대Target , 맞은도구????
 float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
                                   AActor* DamageCauser)
 {
+	//부모의 테이크데미지 함수호출
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	// 데미지가 0보다 작거나 같거나 때린놈 즉 공격주체가 없다면 리턴
+	if (DamageAmount <= 0.f || !DamageCauser) return ActualDamage;
 
+	//엑터의 전방을 받아오고
+	FVector Forward = GetActorForwardVector();
+	// 엑터의 오른쪽을 받아옴
+	FVector Right = GetActorRightVector();
+	// 나를공격한 대상의 위치에서 내위치의 를빼면 이제 벡터가구해지는 뒤에서 크기를1로 만들고 방향만 유지함
+	FVector ToSource = (DamageCauser->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+
+	// 닷 프로덕트라는 함수로 전방과 맞은 방향으로 내적을 구함?
+	// 내적값에따라 어디서 맞았는지 판별가능 내적은 -1~1 까지 있음 코사인으로 판별함
+	//1일때는 완전히 일치함  정면기준 -+60 정도해서 120도정도
+	//0.5일때는 약간 측면 
+	//0일때 정측면
+	//-1 은 후측면
+	float ForwardDot = FVector::DotProduct(Forward, ToSource);
+	float RightDot = FVector::DotProduct(Right, ToSource);
+	UAnimMontage* MontageToPlay = nullptr;
+
+	// 위에서 구한 각도에따라 어디서맞았는지 확인
+	if (ForwardDot > 0.5f)
+	{
+		MontageToPlay = HitFrontMontage;
+	}
+	else if (ForwardDot < -0.5f)
+	{
+		MontageToPlay = HitBackMontage;
+	}
+	else if (RightDot > 0.f)
+	{
+		MontageToPlay = HitRightMontage;
+	}
+	else
+	{
+		MontageToPlay = HitLeftMontage;
+	}
+
+	//데미지 이펙트가 지점타격 방식인지 확인
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
+		// 부모클래스인 포인트 데미지 이벤트를 자식클래스의 포인트 데미지 이벤트로 캐스팅
 		const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
-		
+		//그후 결과를 힛인포에 저장 어디에맞았는지 등?
+		FHitResult HitInfo = PointDamageEvent->HitInfo;
+
+		//타이머 관리자이름
 		FTimerHandle TimerHandle;
-		FHitResult HitInfo = PointDamageEvent->HitInfo; // 히트 정보를 캡처하기 위해 변수에 저장
 
 		GetWorldTimerManager().SetTimer(
-			TimerHandle, 
-			[this, HitInfo]() // 람다 내부에서 HitInfo를 사용하기 위해 복사 캡처
+			TimerHandle,
+			// 원래 호출 함수다 들어있어야하지만 람다식을 이용해서 
+			// TakeDamage함수안쪽에서 받아올 인자들적고 안에서 람다식 으로진행
+			[this, HitInfo,MontageToPlay,ActualDamage]()
 			{
-				PlayHitEffect(HitInfo);
-			}, 
-			1.0f, 
-			false  
+				//hp로직으로 체력을까는걸담당함
+				CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
+				//체력이 0이거나 0보다작으면 die함수 호출
+				if (CurrentHP <= 0)
+				{
+					Die();
+				}
+				// 로그찍기
+				if (GEngine)
+				{
+					FString HealthMessage = FString::Printf(
+
+						TEXT("HP: %.1f / %.1f (입은 데미지: %.1f)"), CurrentHP, MaxHP, ActualDamage);
+
+					GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, HealthMessage);
+				}
+				//캐릭터가 유효한지확인
+				if (IsValid(this))
+				{
+					//캐릭터체력이 0보다 클때만 재생
+					if (CurrentHP > 0)
+					{
+					// 위에서 저장한 몽타주 플레임에 저장
+						if (MontageToPlay)
+						{
+							PlayAnimMontage(MontageToPlay);
+						}
+						// 이펙트 재생
+						PlayHitEffect(HitInfo);
+					}
+				}
+			},
+			//1초뒤
+			1.0f,
+			//반복 X
+			false
 		);
 	}
-	
-	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
-	
-	if (CurrentHP <= 0)
-	{	
-		CurrentHP = 0;
-		Die();
-	}
+	//리턴값
 	return ActualDamage;
 }
+
 void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 {
 	if (HitEffectSystem && GetWorld())
@@ -183,8 +248,8 @@ void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			GetWorld(),
 			HitEffectSystem,
-			Hitd.ImpactPoint,   
-			Hitd.ImpactNormal.Rotation() 
+			Hitd.ImpactPoint,
+			Hitd.ImpactNormal.Rotation()
 		);
 	}
 }
@@ -219,7 +284,7 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			}, 0.2f, false);
 		}
 	}
-	
+
 	FTimerHandle FireDelayHandle;
 	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
 	{
@@ -303,7 +368,7 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			AMonsterBase* Monster = Cast<AMonsterBase>(hitAttcor);
 			if (Monster)
 			{
-				Monster->ReceiveDamage(20);
+				Monster->ReceiveDamage(Attack);
 				UE_LOG(LogTemp, Warning, TEXT("몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
 			}
 		}
@@ -399,7 +464,6 @@ void AABaseCharacter::Tick(float DeltaTime)
 	{
 		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
 	}
-
 	if (bIsStealthMode)
 	{
 		Stamina -= 10 * DeltaTime;
@@ -774,7 +838,7 @@ void AABaseCharacter::Stealth(bool bIsForce)
 		{
 			if (Mat)
 			{
-				Mat->SetScalarParameterValue(TEXT("Opacity"), 0.2f);
+				Mat->SetScalarParameterValue(TEXT("Opacity"), 0.11f);
 			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1,
@@ -827,7 +891,6 @@ void AABaseCharacter::StealthCoolDown()
 }
 
 
-
 void AABaseCharacter::SetWeaponOpacity(float NewOpacity)
 {
 	for (auto Mat : WeaponMaterials)
@@ -858,10 +921,7 @@ void AABaseCharacter::Die()
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		AnimInstance->Montage_Play(DieMontage);
-		GEngine->AddOnScreenDebugMessage(-1,
-										 2.0f,
-										 FColor::Yellow,
-										 TEXT("함수호출확인"));
+
 
 		//입력차단
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -891,13 +951,13 @@ void AABaseCharacter::Die()
 
 				// 그 상태에서 틱을 끄면 현재 포즈(누운 상태)로 영구 박제됩니다.
 				GetMesh()->SetComponentTickEnabled(false);
-
-				UE_LOG(LogTemp, Error, TEXT("Dante is Permanently Frozen as Gold!"));
 			}
-		}), 1.5f, false);
+		}), 1.8f, false);
 		bIsDead = true;
 	}
 }
+
+
 //void hit();
 
 //void UpdateHp()
