@@ -213,33 +213,50 @@ void AMonsterBase::AttackCheck()
 	FHitResult HitResult;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
 
-	FVector Start = GetMesh()->GetSocketLocation(HandSocketName);
-	FVector End = Start + (GetActorForwardVector() * AttackRange);
 
+	FVector Start = GetMesh()->GetSocketLocation(HandSocketName);
+	FVector End = Start + (GetActorForwardVector() * 1.0f);
+
+	float SphereRadius = 20.0f;
+	FCollisionShape SphereShape = FCollisionShape::MakeSphere(SphereRadius);
+
+	// ECC_GameTraceChannel1은 플레이어가 'Block' 설정되어 있어야 합니다.
 	bool bHasHit = GetWorld()->SweepSingleByChannel(
-		HitResult, Start, End, FQuat::Identity,
+		HitResult,
+		Start,
+		End,
+		FQuat::Identity,
 		ECollisionChannel::ECC_GameTraceChannel1,
-		FCollisionShape::MakeSphere(20.0f), 
+		SphereShape,
 		Params
 	);
 
+	// 4. 시각화 (디버그 구체)
+	// 빨간색 구체는 실제 공격 판정의 크기와 위치를 보여줍니다.
+	DrawDebugSphere(GetWorld(), Start, SphereRadius, 12, FColor::Red, false, 0.1f);
+
+	// 5. 데미지 판정 로직
+	// [중요] bHasHit이 true일 때만 내부 로직이 실행되도록 엄격히 제한합니다.
 	if (bHasHit && HitResult.GetActor())
 	{
 		AActor* HitActor = HitResult.GetActor();
 
+		// 플레이어 태그 확인 및 중복 타격 방지 리스트 확인
 		if (HitActor->ActorHasTag(TEXT("Player")) && !HitActors.Contains(HitActor))
 		{
 			HitActors.Add(HitActor);
 
-			UGameplayStatics::ApplyDamage(HitActor, 10.0f, GetController(), this, nullptr);
-			UE_LOG(LogTemp, Warning, TEXT("First Hit! Damage Applied to: %s"), *HitActor->GetName());
+			UGameplayStatics::ApplyDamage(
+				HitActor,
+				10.0f,
+				GetController(),
+				this,
+				nullptr
+			);
 
-			// 타격 성공 시 시각적 피드백
-			DrawDebugSphere(GetWorld(), HitResult.Location, 45.0f, 12, FColor::Green, false, 1.0f);
+			// 타격 성공 시 로그와 시각적 피드백 (녹색 구체)
+			UE_LOG(LogTemp, Warning, TEXT("!!! Player Hit Successfully !!!"));
+			DrawDebugSphere(GetWorld(), HitResult.Location, SphereRadius + 5.0f, 12, FColor::Green, false, 0.5f);
 		}
 	}
-
-	// 평소 궤적 시각화
-	DrawDebugSphere(GetWorld(), Start, 40.0f, 12, FColor::Red, false, 0.1f);
 }
-
