@@ -174,6 +174,9 @@ float AABaseCharacter::TakeDamage(
 		return ActualDamage;
 	}
 
+	const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
+	FHitResult Hitinfo = PointDamageEvent->HitInfo;
+
 	// ====== 피격 방향 계산 ======
 	FVector Forward = GetActorForwardVector();
 	FVector Right = GetActorRightVector();
@@ -194,8 +197,12 @@ float AABaseCharacter::TakeDamage(
 		MontageToPlay = HitLeftMontage;
 
 	if (MontageToPlay)
+	{
 		PlayAnimMontage(MontageToPlay);
-
+		PlayHitEffect(Hitinfo);
+	}
+	
+	
 	return ActualDamage;
 }
 
@@ -388,10 +395,10 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 void AABaseCharacter::Reload()
 {
 	if (bIsReloading)return;
-	
-	bIsReloading = true; 
+
+	bIsReloading = true;
 	bCanFire = false;
-	
+
 	bool bIsFull = CurrentClip >= MaxClip;
 	bool bNoAmmo = CurrentReserveAmmo <= 0;
 
@@ -402,7 +409,7 @@ void AABaseCharacter::Reload()
 
 		bIsReloading = true;
 		bCanFire = false;
-		
+
 		return;
 	}
 
@@ -967,13 +974,13 @@ void AABaseCharacter::Die()
 		// 4. 1.8초 뒤 애니메이션 박제 (누운 상태 유지)
 		FTimerHandle FreezeTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(FreezeTimerHandle, FTimerDelegate::CreateLambda([this]()
+		{
+			if (GetMesh())
 			{
-				if (GetMesh())
-				{
-					GetMesh()->SetAnimInstanceClass(nullptr);
-					GetMesh()->SetComponentTickEnabled(false);
-				}
-			}), 1.8f, false);
+				GetMesh()->SetAnimInstanceClass(nullptr);
+				GetMesh()->SetComponentTickEnabled(false);
+			}
+		}), 1.8f, false);
 
 		// 1.8초(박제)보다 조금 더 뒤에 이동하도록 3.5초로 설정했습니다.
 		FTimerHandle RestartTimerHandle;
