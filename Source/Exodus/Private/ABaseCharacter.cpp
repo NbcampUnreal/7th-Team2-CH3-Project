@@ -139,105 +139,63 @@ void AABaseCharacter::BeginPlay()
 	}
 }
 
-float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
-                                  AActor* DamageCauser)
+float AABaseCharacter::TakeDamage(
+	float DamageAmount,
+	FDamageEvent const& DamageEvent,
+	AController* EventInstigator,
+	AActor* DamageCauser)
 {
-	//부모의 테이크데미지 함수호출
-	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	// 데미지가 0보다 작거나 같거나 때린놈 즉 공격주체가 없다면 리턴
-	if (DamageAmount <= 0.f || !DamageCauser) return ActualDamage;
+	float ActualDamage = Super::TakeDamage(
+		DamageAmount,
+		DamageEvent,
+		EventInstigator,
+		DamageCauser);
 
-	//엑터의 전방을 받아오고
+	if (ActualDamage <= 0.f)
+		return 0.f;
+
+	// ====== HP 감소 ======
+	CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
+
+	if (GEngine)
+	{
+		FString HealthMessage = FString::Printf(
+			TEXT("HP: %.1f / %.1f (입은 데미지: %.1f)"),
+			CurrentHP,
+			MaxHP,
+			ActualDamage);
+
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, HealthMessage);
+	}
+
+	if (CurrentHP <= 0.f)
+	{
+		Die();
+		return ActualDamage;
+	}
+
+	// ====== 피격 방향 계산 ======
 	FVector Forward = GetActorForwardVector();
-	// 엑터의 오른쪽을 받아옴
 	FVector Right = GetActorRightVector();
-	// 나를공격한 대상의 위치에서 내위치의 를빼면 이제 벡터가구해지는 뒤에서 크기를1로 만들고 방향만 유지함
 	FVector ToSource = (DamageCauser->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 
-	// 닷 프로덕트라는 함수로 전방과 맞은 방향으로 내적을 구함?
-	// 내적값에따라 어디서 맞았는지 판별가능 내적은 -1~1 까지 있음 코사인으로 판별함
-	//1일때는 완전히 일치함  정면기준 -+60 정도해서 120도정도
-	//0.5일때는 약간 측면 
-	//0일때 정측면
-	//-1 은 후측면
 	float ForwardDot = FVector::DotProduct(Forward, ToSource);
 	float RightDot = FVector::DotProduct(Right, ToSource);
+
 	UAnimMontage* MontageToPlay = nullptr;
 
-	// 위에서 구한 각도에따라 어디서맞았는지 확인
 	if (ForwardDot > 0.5f)
-	{
 		MontageToPlay = HitFrontMontage;
-	}
 	else if (ForwardDot < -0.5f)
-	{
 		MontageToPlay = HitBackMontage;
-	}
 	else if (RightDot > 0.f)
-	{
 		MontageToPlay = HitRightMontage;
-	}
 	else
-	{
 		MontageToPlay = HitLeftMontage;
-	}
 
-	//데미지 이펙트가 지점타격 방식인지 확인
-	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
-	{
-		// 부모클래스인 포인트 데미지 이벤트를 자식클래스의 포인트 데미지 이벤트로 캐스팅
-		const FPointDamageEvent* PointDamageEvent = static_cast<const FPointDamageEvent*>(&DamageEvent);
-		//그후 결과를 힛인포에 저장 어디에맞았는지 등?
-		FHitResult HitInfo = PointDamageEvent->HitInfo;
+	if (MontageToPlay)
+		PlayAnimMontage(MontageToPlay);
 
-		//타이머 관리자이름
-		FTimerHandle TimerHandle;
-
-		GetWorldTimerManager().SetTimer(
-			TimerHandle,
-			// 원래 호출 함수다 들어있어야하지만 람다식을 이용해서 
-			// TakeDamage함수안쪽에서 받아올 인자들적고 안에서 람다식 으로진행
-			[this, HitInfo,MontageToPlay,ActualDamage]()
-			{
-				//hp로직으로 체력을까는걸담당함
-				CurrentHP = FMath::Clamp(CurrentHP - ActualDamage, 0.0f, MaxHP);
-				//체력이 0이거나 0보다작으면 die함수 호출
-				if (CurrentHP <= 0)
-				{
-					Die();
-				}
-				// 로그찍기
-				if (GEngine)
-				{
-					FString HealthMessage = FString::Printf(
-
-						TEXT("HP: %.1f / %.1f (입은 데미지: %.1f)"), CurrentHP, MaxHP, ActualDamage);
-
-					GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, HealthMessage);
-				}
-				//캐릭터가 유효한지확인
-				if (IsValid(this))
-				{
-					//캐릭터체력이 0보다 클때만 재생
-					if (CurrentHP > 0)
-					{
-						// 위에서 저장한 몽타주 플레임에 저장
-						if (MontageToPlay)
-						{
-							PlayAnimMontage(MontageToPlay);
-						}
-						// 이펙트 재생
-						PlayHitEffect(HitInfo);
-					}
-				}
-			},
-			//1초뒤
-			1.0f,
-			//반복 X
-			false
-		);
-	}
-	//리턴값
 	return ActualDamage;
 }
 
@@ -978,44 +936,54 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 
 void AABaseCharacter::Die()
 {
+	// 이미 죽은 상태라면 중복 실행 방지
+	if (bIsDead) return;
+	bIsDead = true;
+
 	if (DieMontage)
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		AnimInstance->Montage_Play(DieMontage);
+		if (AnimInstance)
+		{
+			AnimInstance->Montage_Play(DieMontage);
+		}
 
-
-		//입력차단
+		// 1. 입력 차단
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
 			DisableInput(PC);
 		}
 
-		//  이동 컴포넌트 즉시 정지
+		// 2. 이동 기능 즉시 정지 및 비활성화
 		if (GetCharacterMovement())
 		{
-			// 바닥으로 떨어지는 관성까지 포함해 모든 움직임을 멈춤
 			GetCharacterMovement()->StopMovementImmediately();
-			// 이동 기능 자체를 비활성화
 			GetCharacterMovement()->DisableMovement();
 		}
 
-		//컨트롤러와 캐릭터의 연결 끊기 (AI나 플레이어가 더 이상 제어 불가)
+		// 3. 컨트롤러 연결 끊기
 		DetachFromControllerPendingDestroy();
-		FTimerHandle DeathTimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(DeathTimerHandle, FTimerDelegate::CreateLambda([this]()
-		{
-			if (GetMesh())
-			{
-				// 애니메이션 블루프린트 자체를 메쉬에서 떼어냅니다.
-				// 엔진에 "이제 이 메쉬는 애니메이션 안 써!"라고 못 박는 겁니다.
-				GetMesh()->SetAnimInstanceClass(nullptr);
 
-				// 그 상태에서 틱을 끄면 현재 포즈(누운 상태)로 영구 박제됩니다.
-				GetMesh()->SetComponentTickEnabled(false);
-			}
-		}), 1.8f, false);
-		bIsDead = true;
+		// 4. 1.8초 뒤 애니메이션 박제 (누운 상태 유지)
+		FTimerHandle FreezeTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(FreezeTimerHandle, FTimerDelegate::CreateLambda([this]()
+			{
+				if (GetMesh())
+				{
+					GetMesh()->SetAnimInstanceClass(nullptr);
+					GetMesh()->SetComponentTickEnabled(false);
+				}
+			}), 1.8f, false);
+
+		// 1.8초(박제)보다 조금 더 뒤에 이동하도록 3.5초로 설정했습니다.
+		FTimerHandle RestartTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(RestartTimerHandle, this, &AABaseCharacter::RestartLevel, 3.5f, false);
 	}
+}
+
+void AABaseCharacter::RestartLevel()
+{
+	UGameplayStatics::OpenLevel(this, FName("GameStart"));
 }
 
 

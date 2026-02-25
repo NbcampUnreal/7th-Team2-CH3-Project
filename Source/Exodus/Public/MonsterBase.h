@@ -67,6 +67,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Item")
 	TSubclassOf<AActor> DropItemClass;
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
+	void UpdateHP_UI();
+
 	bool CanAttack(AActor* Target) const;
 
 	virtual void Die();

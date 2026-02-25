@@ -102,6 +102,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 CurrentReserveAmmo;
 
+	FTimerHandle DeathTimerHandle;
+
+	UFUNCTION()
+	void RestartLevel();
 	
 
 public:
@@ -222,6 +226,7 @@ public:
 	float LaunchTimer;
 	bool bCanLaunch;
 	void bLaunch();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grenade")
 	int32 GrenadeCount;
 	
 	
