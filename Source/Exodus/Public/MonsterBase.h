@@ -25,6 +25,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float CurrentHP;
 
+	UPROPERTY()
+	TArray<AActor*> HitActors;
+
 	bool bIsDead = false;
 
 public:
@@ -44,7 +47,7 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
-	float AttackRange = 150.f;
+	float AttackRange = 100.f;
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	float AttackDamage = 20.f;
@@ -68,10 +71,12 @@ public:
 
 	virtual void Die();
 	void DropItem();
+	void AttackCheck();
 
 	void SetDetected(bool bDetected) { bHasDetectedPlayer = bDetected; }
 	bool GetDetected() const { return bHasDetectedPlayer; }
 	class USoundBase* GetDetectSound() const { return DetectSound; }
+	void ClearHitActors() { HitActors.Empty(); }
 
 protected:
 
@@ -99,4 +104,10 @@ protected:
 	FTimerHandle DeathTimerHandle;
 
 	void DestroyAfterDeath();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	FName HandSocketName = TEXT("AttackSocket");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float AttackRadius = 20.0f;
 };

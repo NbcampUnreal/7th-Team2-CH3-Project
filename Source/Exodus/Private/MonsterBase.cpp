@@ -207,3 +207,39 @@ void AMonsterBase::DropItem()
 		UE_LOG(LogTemp, Log, TEXT("No Item Dropped. (Prob: %.2f)"), RandomValue);
 	}
 }
+
+void AMonsterBase::AttackCheck()
+{
+	FHitResult HitResult;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(Attack), false, this);
+
+	FVector Start = GetMesh()->GetSocketLocation(HandSocketName);
+	FVector End = Start + (GetActorForwardVector() * AttackRange);
+
+	bool bHasHit = GetWorld()->SweepSingleByChannel(
+		HitResult, Start, End, FQuat::Identity,
+		ECollisionChannel::ECC_GameTraceChannel1,
+		FCollisionShape::MakeSphere(20.0f), 
+		Params
+	);
+
+	if (bHasHit && HitResult.GetActor())
+	{
+		AActor* HitActor = HitResult.GetActor();
+
+		if (HitActor->ActorHasTag(TEXT("Player")) && !HitActors.Contains(HitActor))
+		{
+			HitActors.Add(HitActor);
+
+			UGameplayStatics::ApplyDamage(HitActor, 10.0f, GetController(), this, nullptr);
+			UE_LOG(LogTemp, Warning, TEXT("First Hit! Damage Applied to: %s"), *HitActor->GetName());
+
+			// 타격 성공 시 시각적 피드백
+			DrawDebugSphere(GetWorld(), HitResult.Location, 45.0f, 12, FColor::Green, false, 1.0f);
+		}
+	}
+
+	// 평소 궤적 시각화
+	DrawDebugSphere(GetWorld(), Start, 40.0f, 12, FColor::Red, false, 0.1f);
+}
+
