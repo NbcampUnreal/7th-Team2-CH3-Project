@@ -207,12 +207,15 @@ public:
 	
 	//스테미나 
 	FTimerHandle StaminaTimerHandle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float Stamina;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float MaxStamina;
+	
 	void UpdateStamina();
 	
 	//수류탄
-	UPROPERTY(EditAnywhere, Category = "Grenade")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category = "Grenade")
 	TSubclassOf<class AGrenade> GrenadeClass;
 	void LaunchGrenade();
 	FTimerHandle LaunchTimerHandle;
@@ -237,6 +240,14 @@ public:
 	
 	void PlayHitEffect(const FHitResult& Hitd);
 	
-	
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* FireSound;
 
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* ReloadOpenEndSound;
+	
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* ReloadingSound;
+	
+	TArray<FTimerHandle> ReloadTimerHandles;
 };		

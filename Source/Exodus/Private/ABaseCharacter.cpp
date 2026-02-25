@@ -221,7 +221,7 @@ float AABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 					//캐릭터체력이 0보다 클때만 재생
 					if (CurrentHP > 0)
 					{
-					// 위에서 저장한 몽타주 플레임에 저장
+						// 위에서 저장한 몽타주 플레임에 저장
 						if (MontageToPlay)
 						{
 							PlayAnimMontage(MontageToPlay);
@@ -264,7 +264,11 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 	FName TargetSocket = MuzzleSocketNames[SocketIndex];
 	FVector MuzzleLocation = GetMesh()->GetSocketLocation(TargetSocket);
 
-
+	FVector MuzzleSoundLocation = GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01"));
+	if (FireSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, MuzzleSoundLocation);
+	}
 	if (MuzzleEffect)
 	{
 		UParticleSystemComponent* MuzzleComp = UGameplayStatics::SpawnEmitterAttached(
@@ -377,9 +381,26 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 
 void AABaseCharacter::StartFire(const FInputActionValue& Value)
 {
+	if (bIsReloading)
+	{
+		StopAnimMontage(ReloadMontage);
+		GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+		if (ReloadTimerHandles.Num() > 0)
+		{
+			for (FTimerHandle& Handle : ReloadTimerHandles)
+			{
+				GetWorldTimerManager().ClearTimer(Handle);
+			}
+			ReloadTimerHandles.Empty();
+		}
+		bCanFire = true;
+		bIsReloading = false;
+		GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
+	}
+
 	if (!bCanFire) { return; }
-	bCanFire = false;
 	float FireRate = 0.7;
+
 	GetWorld()->GetTimerManager().SetTimer(FireTimerHandle, this, &AABaseCharacter::ResultFire, FireRate, false);
 	if (CurrentClip <= 0)
 	{
@@ -389,6 +410,7 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 		return;
 	}
 
+	bCanFire = false;
 	CurrentClip--;
 
 	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
@@ -408,7 +430,10 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 void AABaseCharacter::Reload()
 {
 	if (bIsReloading)return;
-
+	
+	bIsReloading = true; 
+	bCanFire = false;
+	
 	bool bIsFull = CurrentClip >= MaxClip;
 	bool bNoAmmo = CurrentReserveAmmo <= 0;
 
@@ -419,9 +444,7 @@ void AABaseCharacter::Reload()
 
 		bIsReloading = true;
 		bCanFire = false;
-
-		float WaitTime = 1.0f;
-		GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, WaitTime, false);
+		
 		return;
 	}
 
@@ -430,14 +453,51 @@ void AABaseCharacter::Reload()
 		float fastanim = 1.6f;
 		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
 		PlayAnimMontage(ReloadMontage, fastanim);
+		if (ReloadingSound && ReloadOpenEndSound)
+		{
+			FTimerHandle ReloadOpenTimer;
+			FTimerHandle ReloadEndTimer;
+
+
+			GetWorldTimerManager().SetTimer(ReloadOpenTimer, [this]()
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenEndSound,
+				                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+				UE_LOG(LogTemp, Warning, TEXT("1.5초 사운드 재생 성공"));
+			}, 0.9f, false);
+			ReloadTimerHandles.Add(ReloadOpenTimer);
+
+			for (int32 i = 0; i < 5; ++i)
+			{
+				FTimerHandle ReloadingHandle;
+				float Delay = 1.2f + (i * 0.2f); // 1.2, 1.4, 1.6, 1.8, 2.0
+
+				GetWorldTimerManager().SetTimer(ReloadingHandle, [this]()
+				{
+					UGameplayStatics::PlaySoundAtLocation(this, ReloadingSound,
+					                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+					UE_LOG(LogTemp, Warning, TEXT("중간 사운드 재생!"));
+				}, Delay, false);
+				ReloadTimerHandles.Add(ReloadingHandle);
+			}
+
+			GetWorldTimerManager().SetTimer(ReloadEndTimer, [this]()
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenEndSound,
+				                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+				UE_LOG(LogTemp, Warning, TEXT("3초 사운드 재생 성공"));
+			}, 3.0f, false);
+			ReloadTimerHandles.Add(ReloadEndTimer);
+		}
 	}
+
+	bIsReloading = true;
+	bCanFire = false;
 
 	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
 
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
 
-	bIsReloading = true;
-	bCanFire = false;
 	float ReloadTime = 5.f;
 	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, ReloadTime, false);
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed * 0.7;
@@ -455,6 +515,7 @@ void AABaseCharacter::CompleteReload()
 	bIsReloading = false;
 	bCanFire = true;
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;;
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("장전완료 %d/%d"), CurrentClip, MaxClip));
 }
 
 void AABaseCharacter::Tick(float DeltaTime)
