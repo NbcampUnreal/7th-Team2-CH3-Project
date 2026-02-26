@@ -113,10 +113,10 @@ public:
 	TArray<FName> MuzzleSocketNames;
 	
 	UPROPERTY(EditAnywhere, Category = "Effects")
-	class UParticleSystem* MuzzleEffect;
+	UParticleSystem* MuzzleEffect;
 
 	UPROPERTY(EditAnywhere, Category = "Effects")
-	class UParticleSystem* TrailEffect;
+	 UParticleSystem* TrailEffect;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
 	bool bIsDead;
@@ -249,10 +249,13 @@ public:
 	USoundBase* FireSound;
 
 	UPROPERTY(EditAnywhere, Category = "Sound")
-	USoundBase* ReloadOpenEndSound;
+	USoundBase* ReloadOpenMiddleSound;
 	
 	UPROPERTY(EditAnywhere, Category = "Sound")
 	USoundBase* ReloadingSound;
+	
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* ReloadingEndSound;
 	
 	TArray<FTimerHandle> ReloadTimerHandles;
 };		

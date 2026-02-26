@@ -18,6 +18,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Net/RepLayout.h"
 
 AABaseCharacter::AABaseCharacter()
 {
@@ -48,7 +49,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 30;
+	Attack = 15;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -185,17 +186,36 @@ float AABaseCharacter::TakeDamage(
 	UAnimMontage* MontageToPlay = nullptr;
 
 	if (ForwardDot > 0.5f)
+	{
 		MontageToPlay = HitFrontMontage;
+	}
 	else if (ForwardDot < -0.5f)
+	{
 		MontageToPlay = HitBackMontage;
+	}
 	else if (RightDot > 0.f)
+	{
 		MontageToPlay = HitRightMontage;
+	}
 	else
+	{
 		MontageToPlay = HitLeftMontage;
+	}
 
-	if (MontageToPlay)
+	if (MontageToPlay && HitEffectSystem)
+	{
 		PlayAnimMontage(MontageToPlay);
+	}
+	
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent* PointDamageEvent = (const FPointDamageEvent*)&DamageEvent;
+		FHitResult Hitinfo = PointDamageEvent->HitInfo;
+			
+		FName HitBoneName = Hitinfo.MyBoneName;
 
+		PlayHitEffect(Hitinfo);
+	}
 	return ActualDamage;
 }
 
@@ -256,7 +276,7 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 		}
 	}, 0.05f, false);
 
-	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(5.0f));
+	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(1.0f));
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 
 	if (bIsStealthMode)
@@ -320,8 +340,7 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			}, TimeToHit, false);
 		}
 	}
-
-
+	
 	if (Hit.bBlockingHit)
 	{
 		AActor* hitAttcor = Hit.GetActor();
@@ -334,6 +353,15 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 				UE_LOG(LogTemp, Warning, TEXT("몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
 			}
 		}
+	}
+	
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC)
+	{
+		float RecoilPitch = FMath::FRandRange(-0.5f, -1.2f); 
+		float RecoilYaw = FMath::FRandRange(-0.2f, 0.2f);
+		AddControllerPitchInput(RecoilPitch);
+		AddControllerYawInput(RecoilYaw);
 	}
 }
 
@@ -385,96 +413,104 @@ void AABaseCharacter::StartFire(const FInputActionValue& Value)
 }
 
 // 재장전
-void AABaseCharacter::Reload()
-{
-	if (bIsReloading)return;
-	
-	bIsReloading = true; 
-	bCanFire = false;
-	
-	bool bIsFull = CurrentClip >= MaxClip;
-	bool bNoAmmo = CurrentReserveAmmo <= 0;
-
-	if (bIsFull || bNoAmmo)
+	void AABaseCharacter::Reload()
 	{
-		FString FailMsg = bIsFull ? TEXT("탄창이 가득 찼습니다") : TEXT("총알이 없습니다");
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FailMsg);
+		if (bIsReloading)return;
+		
+		bIsReloading = true; 
+		bCanFire = false;
+		
+		bool bIsFull = CurrentClip >= MaxClip;
+		bool bNoAmmo = CurrentReserveAmmo <= 0;
+
+		if (bIsFull || bNoAmmo)
+		{
+			FString FailMsg = bIsFull ? TEXT("탄창이 가득 찼습니다") : TEXT("총알이 없습니다");
+			GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FailMsg);
+
+			bIsReloading = true;
+			bCanFire = false;
+			
+			return;
+		}
+
+		if (ReloadMontage)
+		{
+			float fastanim = 1.6f;
+			UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
+			PlayAnimMontage(ReloadMontage, fastanim);
+			if (ReloadingSound && ReloadOpenMiddleSound)
+			{
+				FTimerHandle ReloadOpenTimer;
+				FTimerHandle ReloadEndTimer;
+
+
+				GetWorldTimerManager().SetTimer(ReloadOpenTimer, [this]()
+				{
+					UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenMiddleSound,
+					                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+					UE_LOG(LogTemp, Warning, TEXT("1.5초 사운드 재생 성공"));
+				}, 0.9f, false);
+				ReloadTimerHandles.Add(ReloadOpenTimer);
+
+				for (int32 i = 0; i < 5; ++i)
+				{
+					FTimerHandle ReloadingHandle;
+					float Delay = 1.2f + (i * 0.2f); // 1.2, 1.4, 1.6, 1.8, 2.0
+
+					GetWorldTimerManager().SetTimer(ReloadingHandle, [this]()
+					{
+						UGameplayStatics::PlaySoundAtLocation(this, ReloadingSound,
+						                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+						UE_LOG(LogTemp, Warning, TEXT("중간 사운드 재생!"));
+					}, Delay, false);
+					ReloadTimerHandles.Add(ReloadingHandle);
+				}
+
+				GetWorldTimerManager().SetTimer(ReloadEndTimer, [this]()
+				{
+					UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenMiddleSound,
+					                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+					UE_LOG(LogTemp, Warning, TEXT("3초 사운드 재생 성공"));
+				}, 3.0f, false);
+				ReloadTimerHandles.Add(ReloadEndTimer);
+				
+				GetWorldTimerManager().SetTimer(ReloadEndTimer, [this]()
+				{
+					UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenMiddleSound,
+														  GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
+					UE_LOG(LogTemp, Warning, TEXT("4.0초 사운드 재생 성공"));
+				}, 4.0f, false);
+				ReloadTimerHandles.Add(ReloadEndTimer);	
+			}
+		}
 
 		bIsReloading = true;
 		bCanFire = false;
-		
-		return;
+
+		GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
+
+		float ReloadTime = 4.f;
+		GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, ReloadTime, false);
+		GetCharacterMovement()->MaxWalkSpeed = NomalSpeed * 0.7;
 	}
 
-	if (ReloadMontage)
+
+	void AABaseCharacter::CompleteReload()
 	{
-		float fastanim = 1.6f;
-		UE_LOG(LogTemp, Warning, TEXT("몽타주 재생 시작!"));
-		PlayAnimMontage(ReloadMontage, fastanim);
-		if (ReloadingSound && ReloadOpenEndSound)
-		{
-			FTimerHandle ReloadOpenTimer;
-			FTimerHandle ReloadEndTimer;
+		int32 AmmoNeeded = MaxClip - CurrentClip;
+		int32 AmmoToLoad = FMath::Min(AmmoNeeded, CurrentReserveAmmo);
 
+		CurrentClip += AmmoToLoad;
+		CurrentReserveAmmo -= AmmoToLoad;
 
-			GetWorldTimerManager().SetTimer(ReloadOpenTimer, [this]()
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenEndSound,
-				                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
-				UE_LOG(LogTemp, Warning, TEXT("1.5초 사운드 재생 성공"));
-			}, 0.9f, false);
-			ReloadTimerHandles.Add(ReloadOpenTimer);
-
-			for (int32 i = 0; i < 5; ++i)
-			{
-				FTimerHandle ReloadingHandle;
-				float Delay = 1.2f + (i * 0.2f); // 1.2, 1.4, 1.6, 1.8, 2.0
-
-				GetWorldTimerManager().SetTimer(ReloadingHandle, [this]()
-				{
-					UGameplayStatics::PlaySoundAtLocation(this, ReloadingSound,
-					                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
-					UE_LOG(LogTemp, Warning, TEXT("중간 사운드 재생!"));
-				}, Delay, false);
-				ReloadTimerHandles.Add(ReloadingHandle);
-			}
-
-			GetWorldTimerManager().SetTimer(ReloadEndTimer, [this]()
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, ReloadOpenEndSound,
-				                                      GetMesh()->GetSocketLocation(TEXT("Muzzle_Socket_01")));
-				UE_LOG(LogTemp, Warning, TEXT("3초 사운드 재생 성공"));
-			}, 3.0f, false);
-			ReloadTimerHandles.Add(ReloadEndTimer);
-		}
+		bIsReloading = false;
+		bCanFire = true;
+		GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;;
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("장전완료 %d/%d"), CurrentClip, MaxClip));
 	}
-
-	bIsReloading = true;
-	bCanFire = false;
-
-	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
-
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("재장전중 %d/%d"), CurrentClip, MaxClip));
-
-	float ReloadTime = 5.f;
-	GetWorldTimerManager().SetTimer(ReloadTimerHandle, this, &AABaseCharacter::CompleteReload, ReloadTime, false);
-	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed * 0.7;
-}
-
-
-void AABaseCharacter::CompleteReload()
-{
-	int32 AmmoNeeded = MaxClip - CurrentClip;
-	int32 AmmoToLoad = FMath::Min(AmmoNeeded, CurrentReserveAmmo);
-
-	CurrentClip += AmmoToLoad;
-	CurrentReserveAmmo -= AmmoToLoad;
-
-	bIsReloading = false;
-	bCanFire = true;
-	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;;
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Blue, FString::Printf(TEXT("장전완료 %d/%d"), CurrentClip, MaxClip));
-}
 
 void AABaseCharacter::Tick(float DeltaTime)
 {

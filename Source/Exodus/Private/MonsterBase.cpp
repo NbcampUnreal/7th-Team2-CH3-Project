@@ -226,10 +226,12 @@ void AMonsterBase::AttackCheck()
 		if (HitActor->ActorHasTag(TEXT("Player")) && !HitActors.Contains(HitActor))
 		{
 			HitActors.Add(HitActor);
-
-			UGameplayStatics::ApplyDamage(
+			FVector ShotDirection = (End - Start).GetSafeNormal();
+			UGameplayStatics::ApplyPointDamage(
 				HitActor,
 				AttackDamage,
+				ShotDirection,
+				HitResult,
 				GetController(),
 				this,
 				nullptr
