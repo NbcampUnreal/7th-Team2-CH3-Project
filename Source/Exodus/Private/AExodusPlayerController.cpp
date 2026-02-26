@@ -13,7 +13,6 @@ AAExodusPlayerController::AAExodusPlayerController() :
 	, ReloadAction(nullptr)
 	,ThrowGrenadeAction(nullptr)
 	,StealthAction(nullptr)
-	,GetItemAction(nullptr)
 {
 
 }
