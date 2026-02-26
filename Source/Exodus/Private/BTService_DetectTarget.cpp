@@ -38,21 +38,24 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
         if (Monster && !Monster->GetDetected())
         {
             Monster->SetDetected(true);
-
-            if (Monster->GetDetectSound())
-            {
-                UGameplayStatics::PlaySoundAtLocation(GetWorld(), Monster->GetDetectSound(), Monster->GetActorLocation());
-            }
-
-            Monster->GetCharacterMovement()->MaxWalkSpeed = 100.f;
+            Monster->PlayRoar(); 
         }
 
-        OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
+        if (Monster && !Monster->IsRoaring())
+        {
+            OwnerComp.GetBlackboardComponent()->SetValueAsObject(
+                TargetKey.SelectedKeyName,
+                PlayerCharacter
+            );
+        }
     }
     else
     {
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
 
- if(Monster) { Monster->SetDetected(false); Monster->GetCharacterMovement()->MaxWalkSpeed = 50.f; }
+        if (Monster)
+        {
+            Monster->SetDetected(false);
+        }
     }
 }

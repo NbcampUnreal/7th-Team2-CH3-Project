@@ -70,6 +70,14 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
 	void UpdateHP_UI();
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Roar")
+	UAnimMontage* RoarMontage;
+
+	bool bIsRoaring = false;
+
+	void PlayRoar();
+	bool IsRoaring() const { return bIsRoaring; }
+
 	bool CanAttack(AActor* Target) const;
 
 	virtual void Die();

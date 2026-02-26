@@ -239,3 +239,37 @@ void AMonsterBase::AttackCheck()
 		}
 	}
 }
+
+void AMonsterBase::PlayRoar()
+{
+	if (bIsDead || bIsRoaring) return;
+
+	bIsRoaring = true;
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	if (RoarMontage)
+	{
+		float Duration = PlayAnimMontage(RoarMontage);
+
+		if (Duration > 0.f)
+		{
+			FTimerHandle RoarTimer;
+			GetWorldTimerManager().SetTimer(
+				RoarTimer,
+				[this]()
+				{
+					bIsRoaring = false;
+
+					if (!bIsDead)
+					{
+						GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+					}
+				},
+				Duration,
+				false
+			);
+		}
+	}
+}
