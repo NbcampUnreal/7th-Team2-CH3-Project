@@ -256,6 +256,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sound")
 	USoundBase* ReloadingEndSound;
 	
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* StealthOnSound;
+
 	TArray<FTimerHandle> ReloadTimerHandles;
 	
 	float RecoilRemainingPitch = 0.0f;

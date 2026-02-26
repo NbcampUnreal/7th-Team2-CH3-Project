@@ -941,6 +941,10 @@ void AABaseCharacter::Stealth(bool bIsForce)
 		bIsStealthMode = true;
 		Tags.Remove(TEXT("Player"));
 		Tags.AddUnique(TEXT("Stealth"));
+		if (StealthOnSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, StealthOnSound, GetActorLocation());
+		}
 		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
 		{
 			if (Mat)
