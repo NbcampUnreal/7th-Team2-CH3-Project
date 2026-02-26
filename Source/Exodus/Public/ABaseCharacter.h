@@ -3,7 +3,6 @@
 
 #pragma once
 #include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
@@ -258,4 +257,10 @@ public:
 	USoundBase* ReloadingEndSound;
 	
 	TArray<FTimerHandle> ReloadTimerHandles;
+	
+	float RecoilRemainingPitch = 0.0f;
+	float RecoilRemainingYaw = 0.0f;
+	float TotalRecoilToRecover = 0.0f;
+	
+	
 };		
