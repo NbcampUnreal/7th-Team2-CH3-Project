@@ -87,7 +87,7 @@ bool AMonsterBase::PerformAttack(AActor* Target)
 
 	bCanAttack = false;
 
-	ClearHitActors(); // 공격 시작할 때 초기화
+	ClearHitActors();
 
 	if (AttackMontage)
 	{
@@ -131,22 +131,29 @@ void AMonsterBase::Die()
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
+	if (GetMesh())
+	{
+		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetMesh()->SetSimulatePhysics(false);
+	}
+
 	if (DeathMontage)
 	{
 		float Duration = PlayAnimMontage(DeathMontage);
 
 		if (Duration > 0.f)
 		{
+			FTimerHandle DeathFreezeTimer;
 			GetWorldTimerManager().SetTimer(
-				DeathTimer,
+				DeathFreezeTimer,
 				[this]()
 				{
 					if (GetMesh())
 					{
-						GetMesh()->bNoSkeletonUpdate = true;
+						GetMesh()->bPauseAnims = true;
 					}
 				},
-				Duration - 0.1f,
+				Duration,
 				false
 			);
 		}
@@ -163,6 +170,7 @@ void AMonsterBase::Die()
 		false
 	);
 }
+
 void AMonsterBase::DestroyAfterDeath()
 {
 	Destroy();
