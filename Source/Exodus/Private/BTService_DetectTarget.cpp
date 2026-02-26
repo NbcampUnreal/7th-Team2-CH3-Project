@@ -20,9 +20,14 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
     Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
     AAIController* AIController = OwnerComp.GetAIOwner();
-    if (!AIController || !AIController->GetPawn()) return;
+    if (!AIController) return;
 
-    AMonsterBase* Monster = Cast<AMonsterBase>(AIController->GetPawn());
+    APawn* Pawn = AIController->GetPawn();
+    if (!Pawn) return;
+
+    AMonsterBase* Monster = Cast<AMonsterBase>(Pawn);
+    if (!Monster) return;
+
     ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
 
     if (!PlayerCharacter)
@@ -31,28 +36,30 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
         return;
     }
 
-    float Distance = FVector::Dist(Monster->GetActorLocation(), PlayerCharacter->GetActorLocation());
+    float Distance = FVector::Dist(
+        Monster->GetActorLocation(),
+        PlayerCharacter->GetActorLocation()
+    );
 
     if (Distance <= DetectRadius && PlayerCharacter->ActorHasTag(TEXT("Player")))
     {
-        if (Monster && !Monster->GetDetected())
+        if (!Monster->GetDetected())
         {
             Monster->SetDetected(true);
-
-            if (Monster->GetDetectSound())
-            {
-                UGameplayStatics::PlaySoundAtLocation(GetWorld(), Monster->GetDetectSound(), Monster->GetActorLocation());
-            }
-
-            Monster->GetCharacterMovement()->MaxWalkSpeed = 100.f;
+            Monster->PlayRoar(); 
         }
 
-        OwnerComp.GetBlackboardComponent()->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
+        if (!Monster->IsRoaring())
+        {
+            OwnerComp.GetBlackboardComponent()->SetValueAsObject(
+                TargetKey.SelectedKeyName,
+                PlayerCharacter
+            );
+        }
     }
     else
     {
         OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
-
- if(Monster) { Monster->SetDetected(false); Monster->GetCharacterMovement()->MaxWalkSpeed = 50.f; }
+        Monster->SetDetected(false);
     }
 }
