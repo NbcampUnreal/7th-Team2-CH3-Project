@@ -278,9 +278,10 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 		}
 	}, 0.05f, false);
 
-	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(1.0f));
+	//FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(0.5f));
+	FVector ShotDirection = ViewRotation.Vector();
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
-
+	
 	if (bIsStealthMode)
 	{
 		Stealth(true);
@@ -294,20 +295,20 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 		ECC_Visibility,
 		Params);
 
-	//FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
+	FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
 	FVector BeamEnd = bIsHit ? Hit.ImpactPoint : EndPos;
 
 
-	// DrawDebugLine(
-	// 	GetWorld(),
-	// 	ViewLocation,
-	// 	EndPos,
-	// 	LineColor,
-	// 	false,
-	// 	2.0f,
-	// 	0,
-	// 	3.0f
-	// );
+	DrawDebugLine(
+		GetWorld(),
+		ViewLocation,
+		EndPos,
+		LineColor,
+		false,
+		2.0f,
+		0,
+		3.0f
+	);
 
 	// 이펙트가 보이게하는 함수
 	if (TrailEffect)
