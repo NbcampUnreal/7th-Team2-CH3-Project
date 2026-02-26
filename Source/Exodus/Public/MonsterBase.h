@@ -102,9 +102,6 @@ protected:
 
 	bool bHasDetectedPlayer = false;
 
-	float DefaultSpeed = 200.f;
-	float ChaseSpeed = 400.f;
-
 	bool bCanAttack = true;
 
 	FTimerHandle AttackCooldownTimer;
@@ -121,4 +118,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float AttackRadius = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float DefaultSpeed = 200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float ChaseSpeed = 400.f;
 };
