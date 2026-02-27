@@ -113,7 +113,32 @@ bool AABaseCharacter::AddItemToInventory(AActor* NewItem)
 void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	UGameUserSettings* MyGameSettings = GEngine->GetGameUserSettings();
+    if (MyGameSettings)
+    {
+        MyGameSettings->SetFullscreenMode(EWindowMode::Windowed);
+        MyGameSettings->SetScreenResolution(FIntPoint(1280, 720)); // 야후님이 원하는 해상도
+        MyGameSettings->ApplySettings(false);
+    }
 
+	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+	if (Settings)
+	{
+		// 1. 내부 렌더링 배율을 100%로 고정 (DPI 곡선과 짝꿍입니다)
+		Settings->SetResolutionScaleNormalized(1.0f);
+   
+		// 2. 전체 창모드 (WindowedFullscreen) 설정
+		Settings->SetFullscreenMode(EWindowMode::WindowedFullscreen); 
+   
+		// 3. 현재 모니터 해상도 적용
+		FIntPoint DestRes = Settings->GetDesktopResolution();
+		Settings->SetScreenResolution(DestRes);
+   
+		// 4. 적용 및 저장
+		Settings->ApplySettings(true);
+		Settings->SaveSettings();
+	}
+	
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
 	if (GetMesh())
@@ -232,13 +257,13 @@ void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 			Hitd.ImpactNormal.Rotation()
 		);
 	}
-}
+}	
 
 // 사격
 void AABaseCharacter::Fire(int32 SocketIndex)
 {
 	FName TargetSocketName = MuzzleSocketNames[SocketIndex];
-
+	FCollisionQueryParams Params1;
 	// 소켓 위치 가져옴
 	if (!MuzzleSocketNames.IsValidIndex(SocketIndex)) return;
 	FName TargetSocket = MuzzleSocketNames[SocketIndex];
@@ -278,37 +303,41 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 		}
 	}, 0.05f, false);
 
-	//FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(0.5f));
-	FVector ShotDirection = ViewRotation.Vector();
+	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(2.0f));
+	//FVector ShotDirection = ViewRotation.Vector();
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 	
 	if (bIsStealthMode)
 	{
 		Stealth(true);
 	}
-	Params.AddIgnoredActor(this);
+	Params1.bTraceComplex = true; // 복잡한 충돌(뼈) 체크
+	Params1.bReturnFaceIndex = true; // 뼈 이름 반환 유도
+	Params1.AddIgnoredActor(this);
+		
+	
 	// 카메라에서 나가는 라인트레이서
 	bool bIsHit = GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		ViewLocation,
 		EndPos,
 		ECC_Visibility,
-		Params);
+		Params1);
 
-	FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
+	//FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
 	FVector BeamEnd = bIsHit ? Hit.ImpactPoint : EndPos;
 
 
-	DrawDebugLine(
-		GetWorld(),
-		ViewLocation,
-		EndPos,
-		LineColor,
-		false,
-		2.0f,
-		0,
-		3.0f
-	);
+	// DrawDebugLine(
+	// 	GetWorld(),
+	// 	ViewLocation,
+	// 	EndPos,
+	// 	LineColor,
+	// 	false,
+	// 	2.0f,
+	// 	0,
+	// 	3.0f
+	// );
 
 	// 이펙트가 보이게하는 함수
 	if (TrailEffect)
@@ -345,46 +374,34 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			}, TimeToHit, false);
 		}
 	}
-	Params.bTraceComplex = true; // 복잡한 충돌(뼈) 체크
-	Params.bReturnFaceIndex = true; // 뼈 이름 반환 유도
-	Params.AddIgnoredActor(this);
-
-
+	
 	if (Hit.bBlockingHit)
 	{
 		AActor* hitAttcor = Hit.GetActor();
 		if (hitAttcor)
 		{
-			if (Hit.GetComponent())
-			{
-				UE_LOG(LogTemp, Error, TEXT("실제로 맞은 것: %s"), *Hit.GetComponent()->GetName());
-			}
 			AMonsterBase* Monster = Cast<AMonsterBase>(hitAttcor);
 			if (Monster)
 			{
 				float FinalDamage = Attack;
-				FName HitBone = Hit.MyBoneName;
+				FName HitBone = Hit.BoneName;
 				UE_LOG(LogTemp, Warning, TEXT("지금 내가 맞춘 뼈 이름: %s"), *HitBone.ToString());
 				if (HitBone == TEXT("head"))
 				{
-					FinalDamage = Attack * 1.5;
+					FinalDamage = Attack * 2;
 					UE_LOG(LogTemp, Warning, TEXT(" 헤드샷 몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
 				}
 				Monster->ReceiveDamage(FinalDamage);
 				UE_LOG(LogTemp, Warning, TEXT("몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
-				if (CrossLine) // 1. 이미 생성된 위젯이 있는지 확인
+				if (CrossLine)
 				{
-					// 2. 위젯 클래스에서 "HitAnim"이라는 이름의 변수(애니메이션)를 찾습니다.
 					FProperty* AnimProp = CrossLine->GetClass()->FindPropertyByName(FName("HitAnim"));
-        
 					if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(AnimProp))
 					{
-						// 3. 찾은 속성을 실제 애니메이션 객체로 변환합니다.
 						UWidgetAnimation* FoundAnim = Cast<UWidgetAnimation>(ObjectProp->GetObjectPropertyValue_InContainer(CrossLine));
             
 						if (FoundAnim)
 						{
-							// PlayAnimation(애니메이션, 시작시간, 루프횟수, 재생모드, 속도)
 							CrossLine->PlayAnimation(FoundAnim, 0.0f, 1,EUMGSequencePlayMode::Forward ,1.0f,false);
 						}
 					}
