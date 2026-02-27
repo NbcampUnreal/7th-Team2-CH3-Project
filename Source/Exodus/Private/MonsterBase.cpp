@@ -115,6 +115,12 @@ void AMonsterBase::Die()
 	if (bIsDead) return;
 	bIsDead = true;
 
+	ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
+	if (AABaseCharacter* Player = Cast<AABaseCharacter>(PlayerCharacter))
+	{
+		Player->AddKill();
+	}
+
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->StopMovementImmediately();

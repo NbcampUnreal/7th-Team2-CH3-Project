@@ -1106,5 +1106,9 @@ void AABaseCharacter::RestartLevel()
 	UGameplayStatics::OpenLevel(this, FName("GameStart"));
 }
 
-
+void AABaseCharacter::AddKill()
+{
+	KillCount++;
+	UE_LOG(LogTemp, Warning, TEXT("KILL : %d"), KillCount);
+}
 
