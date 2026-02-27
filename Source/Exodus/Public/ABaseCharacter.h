@@ -259,6 +259,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sound")
 	USoundBase* StealthOnSound;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kill")
+	int32 KillCount;
+
+	UFUNCTION(BlueprintCallable, Category = "Kill")
+	void AddKill();
+
 	TArray<FTimerHandle> ReloadTimerHandles;
 	
 	float RecoilRemainingPitch = 0.0f;
