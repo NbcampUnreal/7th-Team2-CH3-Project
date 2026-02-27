@@ -29,19 +29,18 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
     if (!Monster) return;
 
     ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+    UBlackboardComponent* BBComp = OwnerComp.GetBlackboardComponent();
 
-    if (!PlayerCharacter)
+    if (!PlayerCharacter || !PlayerCharacter->ActorHasTag(TEXT("Player")))
     {
-        OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
+        BBComp->ClearValue(TargetKey.SelectedKeyName);
+        Monster->SetDetected(false);
         return;
     }
 
-    float Distance = FVector::Dist(
-        Monster->GetActorLocation(),
-        PlayerCharacter->GetActorLocation()
-    );
+    float Distance = FVector::Dist(Monster->GetActorLocation(), PlayerCharacter->GetActorLocation());
 
-    if (Distance <= DetectRadius && PlayerCharacter->ActorHasTag(TEXT("Player")))
+    if (Distance <= DetectRadius)
     {
         if (!Monster->GetDetected())
         {
@@ -51,15 +50,12 @@ void UBTService_DetectTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 
         if (!Monster->IsRoaring())
         {
-            OwnerComp.GetBlackboardComponent()->SetValueAsObject(
-                TargetKey.SelectedKeyName,
-                PlayerCharacter
-            );
+            BBComp->SetValueAsObject(TargetKey.SelectedKeyName, PlayerCharacter);
         }
     }
     else
     {
-        OwnerComp.GetBlackboardComponent()->ClearValue(TargetKey.SelectedKeyName);
+        BBComp->ClearValue(TargetKey.SelectedKeyName);
         Monster->SetDetected(false);
     }
 }
