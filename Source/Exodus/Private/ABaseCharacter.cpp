@@ -113,31 +113,41 @@ bool AABaseCharacter::AddItemToInventory(AActor* NewItem)
 void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	UGameUserSettings* MyGameSettings = GEngine->GetGameUserSettings();
-    if (MyGameSettings)
-    {
-        MyGameSettings->SetFullscreenMode(EWindowMode::Windowed);
-        MyGameSettings->SetScreenResolution(FIntPoint(1280, 720)); // 야후님이 원하는 해상도
-        MyGameSettings->ApplySettings(false);
-    }
-
-	UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	if (Settings)
+	if (GEngine)
 	{
-		// 1. 내부 렌더링 배율을 100%로 고정 (DPI 곡선과 짝꿍입니다)
-		Settings->SetResolutionScaleNormalized(1.0f);
-   
-		// 2. 전체 창모드 (WindowedFullscreen) 설정
-		Settings->SetFullscreenMode(EWindowMode::WindowedFullscreen); 
-   
-		// 3. 현재 모니터 해상도 적용
-		FIntPoint DestRes = Settings->GetDesktopResolution();
-		Settings->SetScreenResolution(DestRes);
-   
-		// 4. 적용 및 저장
-		Settings->ApplySettings(true);
-		Settings->SaveSettings();
+		UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+		if (Settings)
+		{
+			Settings->SetFullscreenMode(EWindowMode::Windowed);
+			Settings->SetScreenResolution(FIntPoint(1280, 720));
+			Settings->ApplySettings(true);
+		}
 	}
+	// UGameUserSettings* MyGameSettings = GEngine->GetGameUserSettings();
+ //    if (MyGameSettings)
+ //    {
+ //        MyGameSettings->SetFullscreenMode(EWindowMode::Windowed);
+ //        MyGameSettings->SetScreenResolution(FIntPoint(1280, 720)); // 야후님이 원하는 해상도 	
+ //        MyGameSettings->ApplySettings(false);
+ //    }
+
+	// UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+	// if (Settings)
+	// {
+	// 	// 1. 내부 렌더링 배율을 100%로 고정 (DPI 곡선과 짝꿍입니다)
+	// 	Settings->SetResolutionScaleNormalized(1.0f);
+ //   
+	// 	// 2. 전체 창모드 (WindowedFullscreen) 설정
+	// 	Settings->SetFullscreenMode(EWindowMode::WindowedFullscreen); 
+ //   
+	// 	// 3. 현재 모니터 해상도 적용
+	// 	FIntPoint DestRes = Settings->GetDesktopResolution();
+	// 	Settings->SetScreenResolution(DestRes);
+ //   
+	// 	// 4. 적용 및 저장
+	// 	Settings->ApplySettings(true);
+	// 	Settings->SaveSettings();
+	// }
 	
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
