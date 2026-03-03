@@ -14,6 +14,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class ExodusGameInstance;
 struct FInputActionValue;
 
 UCLASS()
@@ -91,7 +92,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP;
 	
-
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxClip;
 
@@ -106,8 +107,7 @@ protected:
 	UFUNCTION()
 	void RestartLevel();
 	
-
-public:
+	
 	// 총알 이펙트담음 배열들
 	TArray<FName> MuzzleSocketNames;
 	
@@ -273,5 +273,19 @@ public:
 	float RecoilRemainingYaw = 0.0f;
 	float TotalRecoilToRecover = 0.0f;
 	
+	void SaveStateToGI();
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor2;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor3;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor4;
+	
+	bool bIsDoorOpen1 = false;
+	bool bIsDoorOpen2 = false;
+	bool bIsDoorOpen3 = false;
+	bool bIsDoorOpen4 = false;
 };		

@@ -7,3 +7,6 @@ UExodusGameInstance::UExodusGameInstance()
 	Vol_Player = 1.0f;
 	Vol_Zombie = 1.0f;
 }
+
+
+
