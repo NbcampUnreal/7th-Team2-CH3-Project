@@ -51,7 +51,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 15;
+	Attack = 100;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -123,31 +123,7 @@ void AABaseCharacter::BeginPlay()
 			Settings->ApplySettings(true);
 		}
 	}
-	// UGameUserSettings* MyGameSettings = GEngine->GetGameUserSettings();
- //    if (MyGameSettings)
- //    {
- //        MyGameSettings->SetFullscreenMode(EWindowMode::Windowed);
- //        MyGameSettings->SetScreenResolution(FIntPoint(1280, 720)); // 야후님이 원하는 해상도 	
- //        MyGameSettings->ApplySettings(false);
- //    }
 
-	// UGameUserSettings* Settings = GEngine->GetGameUserSettings();
-	// if (Settings)
-	// {
-	// 	// 1. 내부 렌더링 배율을 100%로 고정 (DPI 곡선과 짝꿍입니다)
-	// 	Settings->SetResolutionScaleNormalized(1.0f);
- //   
-	// 	// 2. 전체 창모드 (WindowedFullscreen) 설정
-	// 	Settings->SetFullscreenMode(EWindowMode::WindowedFullscreen); 
- //   
-	// 	// 3. 현재 모니터 해상도 적용
-	// 	FIntPoint DestRes = Settings->GetDesktopResolution();
-	// 	Settings->SetScreenResolution(DestRes);
- //   
-	// 	// 4. 적용 및 저장
-	// 	Settings->ApplySettings(true);
-	// 	Settings->SaveSettings();
-	// }
 	
 	CurrentHP = MaxHP;
 	CurrentClip = MaxClip;
@@ -174,6 +150,16 @@ void AABaseCharacter::BeginPlay()
 		// 실제 물건(CrossLine) 만들기
 		CrossLine = CreateWidget<UUserWidget>(GetWorld(), WBP_CrossLine);
 		if (CrossLine) CrossLine->AddToViewport();
+	}
+}
+
+void AABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearAllTimersForObject(this);
 	}
 }
 
@@ -305,11 +291,12 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 	}
 
 	FTimerHandle FireDelayHandle;
-	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
+	GetWorldTimerManager().SetTimer(FireDelayHandle,[WeakThis = TWeakObjectPtr<AABaseCharacter>(this)]()
 	{
-		if (FireMontage)
+		AABaseCharacter* StrongThis = WeakThis.Get();
+		if (StrongThis && StrongThis->FireMontage)
 		{
-			PlayAnimMontage(FireMontage, 1.0f, NAME_None);
+			StrongThis->PlayAnimMontage(StrongThis->FireMontage, 1.0f, NAME_None);
 		}
 	}, 0.05f, false);
 
@@ -583,7 +570,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	}
 	if (bIsStealthMode)
 	{
-		Stamina -= 20 * DeltaTime;
+		Stamina -= 40 * DeltaTime;
 		if (Stamina < 0.0f)
 		{
 			Stamina = 0.0f;
@@ -994,7 +981,7 @@ void AABaseCharacter::Stealth(bool bIsForce)
 		{
 			if (Mat)
 			{
-				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f); // 원래대로 복구 [cite: 2026-02-18]
+				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f);
 			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1,
@@ -1036,7 +1023,6 @@ void AABaseCharacter::SetWeaponOpacity(float NewOpacity)
 	{
 		if (Mat)
 		{
-			// 머테리얼 에디터 내부의 파라미터 이름을 정확히 넣으세요!
 			Mat->SetScalarParameterValue(TEXT("opacity"), NewOpacity);
 		}
 	}
@@ -1048,7 +1034,6 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 	{
 		if (Mat)
 		{
-			// 머테리얼 에디터 내부의 파라미터 이름을 정확히 넣으세요!
 			Mat->SetScalarParameterValue(TEXT("opacity"), NewOpacity);
 		}
 	}
@@ -1056,7 +1041,7 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 
 void AABaseCharacter::Die()
 {
-	// 이미 죽은 상태라면 중복 실행 방지
+
 	if (bIsDead) return;
 	bIsDead = true;
 
@@ -1067,24 +1052,22 @@ void AABaseCharacter::Die()
 		{
 			AnimInstance->Montage_Play(DieMontage);
 		}
-
-		// 1. 입력 차단
+		
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
 			DisableInput(PC);
 		}
 
-		// 2. 이동 기능 즉시 정지 및 비활성화
+		
 		if (GetCharacterMovement())
 		{
 			GetCharacterMovement()->StopMovementImmediately();
 			GetCharacterMovement()->DisableMovement();
 		}
 
-		// 3. 컨트롤러 연결 끊기
 		DetachFromControllerPendingDestroy();
 
-		// 4. 1.8초 뒤 애니메이션 박제 (누운 상태 유지)
+		
 		FTimerHandle FreezeTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(FreezeTimerHandle, FTimerDelegate::CreateLambda([this]()
 		{
@@ -1094,8 +1077,7 @@ void AABaseCharacter::Die()
 				GetMesh()->SetComponentTickEnabled(false);
 			}
 		}), 1.8f, false);
-
-		// 1.8초(박제)보다 조금 더 뒤에 이동하도록 3.5초로 설정했습니다.
+		
 		FTimerHandle RestartTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(RestartTimerHandle, this, &AABaseCharacter::RestartLevel, 3.5f, false);
 	}
@@ -1109,6 +1091,35 @@ void AABaseCharacter::RestartLevel()
 void AABaseCharacter::AddKill()
 {
 	KillCount++;
-	UE_LOG(LogTemp, Warning, TEXT("KILL : %d"), KillCount);
+	Healing++;
+	GrenadeAddCount++;
+	if (Healing == 20)
+	{
+		if (CurrentHP <100)
+		{
+		CurrentHP+=20;
+		}
+		Healing=0;
+	}
+	if (GrenadeAddCount == 40)
+	{
+		GrenadeCount++;
+		GrenadeAddCount=0;
+	}
+	if (KillCount ==60)
+	{
+		MaxStamina = 150;	
+	}
+	
+	if (KillCount == 100)
+	{
+		MaxClip = 30;
+		MaxStamina = 150;	
+	}
+	
+	if (KillCount == 100)
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), FName("TestLevel22"));
+	}
 }
 

@@ -46,7 +46,7 @@ public:
 	void SetHp(int32 NewHp) { CurrentHP = NewHp; }
 protected:
 	virtual void BeginPlay() override;
-
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* GrenadeMontage;
 	
@@ -261,7 +261,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kill")
 	int32 KillCount;
-
+	int32 Healing;
+	int32 GrenadeAddCount;
+	
 	UFUNCTION(BlueprintCallable, Category = "Kill")
 	void AddKill();
 
