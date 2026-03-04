@@ -52,7 +52,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 100;
+	Attack = 20;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -61,7 +61,7 @@ AABaseCharacter::AABaseCharacter()
 	//총알	
 	MaxClip = 15;
 	CurrentClip = MaxClip;
-	CurrentReserveAmmo = 300;
+	CurrentReserveAmmo = 30000;
 
 	//상태	
 	bIsReloading = false;
@@ -120,9 +120,9 @@ bool AABaseCharacter::AddItemToInventory(AActor* NewItem)
 		MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
 		UExodusGameInstance* GI = Cast<UExodusGameInstance>(GetGameInstance());
-		if (GI && MapName.Equals(TEXT("TestLevel22"), ESearchCase::IgnoreCase))
+		if (GI && MapName.Equals(TEXT("MainStage"), ESearchCase::IgnoreCase))
 		{
-			if (GI && MapName.Equals(TEXT("TestLevel22"), ESearchCase::IgnoreCase))
+			if (GI && MapName.Equals(TEXT("MainStage"), ESearchCase::IgnoreCase))
 			{
 				KillCount = GI->SaveKillCount;
 				CurrentHP = GI->SaveCurrentHp;
@@ -605,6 +605,21 @@ void AABaseCharacter::Tick(float DeltaTime)
 			TargetDoor1->SetActorRotation(NewRotation);
 			bIsDoorOpen1 = true;
 		}
+		if (TargetDoor1 && !bIsDoor1Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection1);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor1)
+				{
+					FRotator NewRotation = TargetDoor1->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					TargetDoor1->SetActorRotation(NewRotation);
+					bIsDoor1Closed = true;
+				}
+			}
+		}
 	}
 	
 	if (KillCount >=30)
@@ -615,6 +630,26 @@ void AABaseCharacter::Tick(float DeltaTime)
 			NewRotation.Yaw += 90.0f;
 			TargetDoor2->SetActorRotation(NewRotation);
 			bIsDoorOpen2 = true;
+			
+			FRotator NewRotation1 = TargetDoor1->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor1->SetActorRotation(NewRotation1);
+			bIsDoorOpen1 = true;
+		}
+		if (TargetDoor2 && !bIsDoor2Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection2);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor2)
+				{
+					FRotator NewRotation = TargetDoor2->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					TargetDoor2->SetActorRotation(NewRotation);
+					bIsDoor2Closed = true;
+				}
+			}
 		}
 	}
 	
@@ -626,6 +661,26 @@ void AABaseCharacter::Tick(float DeltaTime)
 			NewRotation.Yaw += 90.0f;
 			TargetDoor3->SetActorRotation(NewRotation);
 			bIsDoorOpen3 = true;
+			
+			FRotator NewRotation1 = TargetDoor2->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor2->SetActorRotation(NewRotation1);
+			bIsDoorOpen2 = true;
+		}
+		if (TargetDoor3 && !bIsDoor3Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection3);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor3)
+				{
+					FRotator NewRotation = TargetDoor3->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					TargetDoor3->SetActorRotation(NewRotation);
+					bIsDoor3Closed = true;
+				}
+			}
 		}
 	}
 	
@@ -637,6 +692,11 @@ void AABaseCharacter::Tick(float DeltaTime)
 			NewRotation.Yaw += 90.0f;
 			TargetDoor4->SetActorRotation(NewRotation);
 			bIsDoorOpen4 = true;
+			
+			FRotator NewRotation1 = TargetDoor3->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor3->SetActorRotation(NewRotation1);
+			bIsDoorOpen3 = true;
 		}
 		
 		FVector CurrentLocation = GetActorLocation();
@@ -1201,7 +1261,7 @@ void AABaseCharacter::AddKill()
 		MaxStamina = 150;
 	}
 	// 대용량 탄창으로교체
-	if (KillCount == 100)
+	if (KillCount >= 100)
 	{
 		MaxClip = 40;
 		MaxStamina = 150;

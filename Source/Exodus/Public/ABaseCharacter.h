@@ -288,4 +288,17 @@ public:
 	bool bIsDoorOpen2 = false;
 	bool bIsDoorOpen3 = false;
 	bool bIsDoorOpen4 = false;
+	
+	
+	bool bIsDoor1Closed = false;
+	bool bIsDoor2Closed = false;
+	bool bIsDoor3Closed = false;
+
+	// 문주변 거리
+	const float PassThreshold = 300.0f;
+	
+	FVector CloseDoorDirection1 = 	FVector(-300,-5895,35);
+	FVector CloseDoorDirection2 = 	FVector(-5530,-5820,35);
+	FVector CloseDoorDirection3 = 	FVector(-3115,-8525,35);
+
 };		
