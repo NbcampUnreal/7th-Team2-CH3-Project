@@ -23,6 +23,16 @@ void AMonsterBase::BeginPlay()
 	CurrentHP = MaxHP;
 }
 
+void AMonsterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearAllTimersForObject(this);
+	}
+}
+
 int32 AMonsterBase::GetHp() const
 {
 	return CurrentHP;
@@ -36,7 +46,7 @@ void AMonsterBase::ReceiveDamage(int32 DamageAmount)
 
 	UpdateHP_UI();
 
-	if (CurrentHP >= 0.f) 
+	if (CurrentHP >= 0.f)
 	{
 		FVector SpawnLocation = GetActorLocation() + FVector(0.f, 0.f, 50.f);
 		FRotator SpawnRotation = GetActorRotation();
@@ -115,6 +125,12 @@ void AMonsterBase::Die()
 	if (bIsDead) return;
 	bIsDead = true;
 
+	ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(this, 0);
+	if (AABaseCharacter* Player = Cast<AABaseCharacter>(PlayerCharacter))
+	{
+		Player->AddKill();
+	}
+
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->StopMovementImmediately();
@@ -146,11 +162,14 @@ void AMonsterBase::Die()
 			FTimerHandle DeathFreezeTimer;
 			GetWorldTimerManager().SetTimer(
 				DeathFreezeTimer,
-				[this]()
+				[WeakMonster = TWeakObjectPtr<AMonsterBase>(this)]()
 				{
-					if (GetMesh())
+					if (AMonsterBase* StrongMonster = WeakMonster.Get())
 					{
-						GetMesh()->bPauseAnims = true;
+						if (StrongMonster->GetMesh())
+						{
+							StrongMonster->GetMesh()->bPauseAnims = true;
+						}
 					}
 				},
 				Duration,

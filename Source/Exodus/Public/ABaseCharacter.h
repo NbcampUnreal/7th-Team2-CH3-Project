@@ -14,6 +14,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class ExodusGameInstance;
 struct FInputActionValue;
 
 UCLASS()
@@ -46,7 +47,7 @@ public:
 	void SetHp(int32 NewHp) { CurrentHP = NewHp; }
 protected:
 	virtual void BeginPlay() override;
-
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	UAnimMontage* GrenadeMontage;
 	
@@ -91,7 +92,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	float MaxHP;
 	
-
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat")
 	int32 MaxClip;
 
@@ -106,8 +107,7 @@ protected:
 	UFUNCTION()
 	void RestartLevel();
 	
-
-public:
+	
 	// 총알 이펙트담음 배열들
 	TArray<FName> MuzzleSocketNames;
 	
@@ -256,11 +256,54 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sound")
 	USoundBase* ReloadingEndSound;
 	
+	UPROPERTY(EditAnywhere, Category = "Sound")
+	USoundBase* StealthOnSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kill")
+	int32 KillCount;
+	int32 Healing;
+	int32 GrenadeAddCount;
+	
+	UFUNCTION(BlueprintCallable, Category = "Kill")
+	void AddKill();
+
 	TArray<FTimerHandle> ReloadTimerHandles;
 	
 	float RecoilRemainingPitch = 0.0f;
 	float RecoilRemainingYaw = 0.0f;
 	float TotalRecoilToRecover = 0.0f;
 	
+	void SaveStateToGI();
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor2;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor3;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor4;
+	
+	bool bIsDoorOpen1 = false;
+	bool bIsDoorOpen2 = false;
+	bool bIsDoorOpen3 = false;
+	bool bIsDoorOpen4 = false;
+	
+	
+	bool bIsDoor1Closed = false;
+	bool bIsDoor2Closed = false;
+	bool bIsDoor3Closed = false;
+
+	// 문주변 거리
+	const float PassThreshold = 400.0f;
+	
+	FVector CloseDoorDirection1 = 	FVector(-300,-5895,35);
+	FVector CloseDoorDirection2 = 	FVector(-5530,-5820,35);
+	FVector CloseDoorDirection3 = 	FVector(-3115,-8525,35);
+
+	UPROPERTY()
+	TSubclassOf<UUserWidget> EndingClass;
+	UPROPERTY()
+	UUserWidget* EndingWidget;
+	bool bIsEndingStarted = false;
 };		

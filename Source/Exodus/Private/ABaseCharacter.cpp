@@ -20,6 +20,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "AudioDevice.h"
+#include "ExodusGameInstance.h"
 
 
 AABaseCharacter::AABaseCharacter()
@@ -41,7 +43,7 @@ AABaseCharacter::AABaseCharacter()
 	CameraComp->bUsePawnControlRotation = false;
 
 	//이동속도
-	NomalSpeed = 360.f;
+	NomalSpeed = 260.f;
 	SprintSpeedMultiplier = 2.0f;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
@@ -51,7 +53,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 15;
+	Attack = 20;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -60,7 +62,7 @@ AABaseCharacter::AABaseCharacter()
 	//총알	
 	MaxClip = 15;
 	CurrentClip = MaxClip;
-	CurrentReserveAmmo = 300;
+	CurrentReserveAmmo = 30000;
 
 	//상태	
 	bIsReloading = false;
@@ -114,8 +116,39 @@ void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentHP = MaxHP;
-	CurrentClip = MaxClip;
+
+	FString MapName = GetWorld()->GetMapName();
+	MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
+
+	UExodusGameInstance* GI = Cast<UExodusGameInstance>(GetGameInstance());
+	if (GI && MapName.Equals(TEXT("MainStage"), ESearchCase::IgnoreCase))
+	{
+		if (GI && MapName.Equals(TEXT("MainStage"), ESearchCase::IgnoreCase))
+		{
+			KillCount = GI->SaveKillCount;
+			CurrentHP = GI->SaveCurrentHp;
+			CurrentClip = GI->SaveCurrentClip;
+			GrenadeAddCount = GI->SaveGrenadeAddCount;
+			GrenadeCount = GI->SaveCurrentGrenade;
+			CurrentReserveAmmo = GI->SaveCurrentReserveAmmo;
+
+			if (KillCount >= 100) { MaxClip = 30; }
+			else { MaxClip = 15; }
+		}
+	}
+
+	if (GEngine)
+	{
+		UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+		if (Settings)
+		{
+			Settings->SetFullscreenMode(EWindowMode::Windowed);
+			Settings->SetScreenResolution(FIntPoint(1280, 720));
+			Settings->ApplySettings(true);
+		}
+	}
+
+
 	if (GetMesh())
 	{
 		WeaponMaterials.Add(GetMesh()->CreateDynamicMaterialInstance(3));
@@ -139,6 +172,16 @@ void AABaseCharacter::BeginPlay()
 		// 실제 물건(CrossLine) 만들기
 		CrossLine = CreateWidget<UUserWidget>(GetWorld(), WBP_CrossLine);
 		if (CrossLine) CrossLine->AddToViewport();
+	}
+}
+
+void AABaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearAllTimersForObject(this);
 	}
 }
 
@@ -238,7 +281,7 @@ void AABaseCharacter::PlayHitEffect(const FHitResult& Hitd)
 void AABaseCharacter::Fire(int32 SocketIndex)
 {
 	FName TargetSocketName = MuzzleSocketNames[SocketIndex];
-
+	FCollisionQueryParams Params1;
 	// 소켓 위치 가져옴
 	if (!MuzzleSocketNames.IsValidIndex(SocketIndex)) return;
 	FName TargetSocket = MuzzleSocketNames[SocketIndex];
@@ -259,40 +302,51 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 		if (MuzzleComp)
 		{
 			FTimerHandle MuzzleTimerHandle;
-			GetWorldTimerManager().SetTimer(MuzzleTimerHandle, [MuzzleComp]()
+			TWeakObjectPtr<UParticleSystemComponent> WeakMuzzle = MuzzleComp;
+
+			GetWorldTimerManager().SetTimer(MuzzleTimerHandle, [WeakMuzzle]()
 			{
-				if (MuzzleComp && MuzzleComp->IsValidLowLevel())
+				if (UParticleSystemComponent* StrongMuzzle = WeakMuzzle.Get())
 				{
-					MuzzleComp->DestroyComponent();
+					if (StrongMuzzle->IsValidLowLevel())
+					{
+						StrongMuzzle->DestroyComponent();
+					}
 				}
 			}, 0.2f, false);
 		}
 	}
 
 	FTimerHandle FireDelayHandle;
-	GetWorldTimerManager().SetTimer(FireDelayHandle, [this]()
+	GetWorldTimerManager().SetTimer(FireDelayHandle, [WeakThis = TWeakObjectPtr<AABaseCharacter>(this)]()
 	{
-		if (FireMontage)
+		AABaseCharacter* StrongThis = WeakThis.Get();
+		if (StrongThis && StrongThis->FireMontage)
 		{
-			PlayAnimMontage(FireMontage, 1.0f, NAME_None);
+			StrongThis->PlayAnimMontage(StrongThis->FireMontage, 1.0f, NAME_None);
 		}
 	}, 0.05f, false);
 
-	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(1.0f));
+	FVector ShotDirection = FMath::VRandCone(ViewRotation.Vector(), FMath::DegreesToRadians(2.0f));
+	//FVector ShotDirection = ViewRotation.Vector();
 	FVector EndPos = ViewLocation + (ShotDirection * 5000.f);
 
 	if (bIsStealthMode)
 	{
 		Stealth(true);
 	}
-	Params.AddIgnoredActor(this);
+	Params1.bTraceComplex = true; // 복잡한 충돌(뼈) 체크
+	Params1.bReturnFaceIndex = true; // 뼈 이름 반환 유도
+	Params1.AddIgnoredActor(this);
+
+
 	// 카메라에서 나가는 라인트레이서
 	bool bIsHit = GetWorld()->LineTraceSingleByChannel(
 		Hit,
 		ViewLocation,
 		EndPos,
 		ECC_Visibility,
-		Params);
+		Params1);
 
 	//FColor LineColor = bIsHit ? FColor::Green : FColor::Red;
 	FVector BeamEnd = bIsHit ? Hit.ImpactPoint : EndPos;
@@ -335,56 +389,49 @@ void AABaseCharacter::Fire(int32 SocketIndex)
 			float TimeToHit = Distance / speed;
 
 			FTimerHandle TimerHandle;
-			GetWorldTimerManager().SetTimer(TimerHandle, [TrailComp]()
+			TWeakObjectPtr<UParticleSystemComponent> WeakTrail = TrailComp;
+			GetWorldTimerManager().SetTimer(TimerHandle, [WeakTrail]()
 			{
-				if (TrailComp && TrailComp->IsValidLowLevel())
+				if (UParticleSystemComponent* StrongTrail = WeakTrail.Get())
 				{
-					TrailComp->DestroyComponent();
+					if (StrongTrail->IsValidLowLevel())
+					{
+						StrongTrail->DestroyComponent();
+					}
 				}
 			}, TimeToHit, false);
 		}
 	}
-	Params.bTraceComplex = true; // 복잡한 충돌(뼈) 체크
-	Params.bReturnFaceIndex = true; // 뼈 이름 반환 유도
-	Params.AddIgnoredActor(this);
-
 
 	if (Hit.bBlockingHit)
 	{
 		AActor* hitAttcor = Hit.GetActor();
 		if (hitAttcor)
 		{
-			if (Hit.GetComponent())
-			{
-				UE_LOG(LogTemp, Error, TEXT("실제로 맞은 것: %s"), *Hit.GetComponent()->GetName());
-			}
 			AMonsterBase* Monster = Cast<AMonsterBase>(hitAttcor);
 			if (Monster)
 			{
 				float FinalDamage = Attack;
-				FName HitBone = Hit.MyBoneName;
+				FName HitBone = Hit.BoneName;
 				UE_LOG(LogTemp, Warning, TEXT("지금 내가 맞춘 뼈 이름: %s"), *HitBone.ToString());
 				if (HitBone == TEXT("head"))
 				{
-					FinalDamage = Attack * 1.5;
+					FinalDamage = Attack * 2;
 					UE_LOG(LogTemp, Warning, TEXT(" 헤드샷 몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
 				}
 				Monster->ReceiveDamage(FinalDamage);
 				UE_LOG(LogTemp, Warning, TEXT("몬스터 체력 깎음! 현재 HP: %d"), Monster->GetHp());
-				if (CrossLine) // 1. 이미 생성된 위젯이 있는지 확인
+				if (CrossLine)
 				{
-					// 2. 위젯 클래스에서 "HitAnim"이라는 이름의 변수(애니메이션)를 찾습니다.
 					FProperty* AnimProp = CrossLine->GetClass()->FindPropertyByName(FName("HitAnim"));
-        
 					if (FObjectProperty* ObjectProp = CastField<FObjectProperty>(AnimProp))
 					{
-						// 3. 찾은 속성을 실제 애니메이션 객체로 변환합니다.
-						UWidgetAnimation* FoundAnim = Cast<UWidgetAnimation>(ObjectProp->GetObjectPropertyValue_InContainer(CrossLine));
-            
+						UWidgetAnimation* FoundAnim = Cast<UWidgetAnimation>(
+							ObjectProp->GetObjectPropertyValue_InContainer(CrossLine));
+
 						if (FoundAnim)
 						{
-							// PlayAnimation(애니메이션, 시작시간, 루프횟수, 재생모드, 속도)
-							CrossLine->PlayAnimation(FoundAnim, 0.0f, 1,EUMGSequencePlayMode::Forward ,1.0f,false);
+							CrossLine->PlayAnimation(FoundAnim, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f, false);
 						}
 					}
 				}
@@ -453,7 +500,7 @@ void AABaseCharacter::Reload()
 
 	bIsReloading = true;
 	bCanFire = false;
-	Stamina -=15;
+	Stamina -= 15;
 	bool bIsFull = CurrentClip >= MaxClip;
 	bool bNoAmmo = CurrentReserveAmmo <= 0;
 
@@ -549,13 +596,180 @@ void AABaseCharacter::CompleteReload()
 void AABaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (KillCount == 0)
+	{
+		// 문을열고
+		if (TargetDoor1 && !bIsDoorOpen1)
+		{
+			FRotator NewRotation = TargetDoor1->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			bIsDoorOpen1 = true;
+			TargetDoor1->SetActorRotation(NewRotation);
+		}
+		// 거리안으로 들어오면 문을닫고
+		if (TargetDoor1 && !bIsDoor1Closed && bIsDoorOpen1)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection1);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor1)
+				{
+					FRotator NewRotation = TargetDoor1->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					bIsDoor1Closed = true;
+					TargetDoor1->SetActorRotation(NewRotation);
+				}
+			}
+		}
+	}
+
+	if (KillCount >= 30)
+	{
+		// 문을열고
+		if (TargetDoor2 && !bIsDoorOpen2)
+		{
+			FRotator NewRotation = TargetDoor2->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			TargetDoor2->SetActorRotation(NewRotation);
+			bIsDoorOpen2 = true;
+			// 1번문도 열고
+			FRotator NewRotation1 = TargetDoor1->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor1->SetActorRotation(NewRotation1);
+			bIsDoorOpen1 = true;
+		}
+		//문을닫고
+		if (TargetDoor2 && !bIsDoor2Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection2);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor2)
+				{
+					FRotator NewRotation = TargetDoor2->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					TargetDoor2->SetActorRotation(NewRotation);
+					bIsDoor2Closed = true;
+				}
+			}
+		}
+	}
+
+	if (KillCount >= 60)
+	{
+		if (TargetDoor3 && !bIsDoorOpen3)
+		{
+			FRotator NewRotation = TargetDoor3->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			TargetDoor3->SetActorRotation(NewRotation);
+			bIsDoorOpen3 = true;
+
+			FRotator NewRotation1 = TargetDoor2->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor2->SetActorRotation(NewRotation1);
+			bIsDoorOpen2 = true;
+		}
+		if (TargetDoor3 && !bIsDoor3Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection3);
+
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor3)
+				{
+					FRotator NewRotation = TargetDoor3->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					TargetDoor3->SetActorRotation(NewRotation);
+					bIsDoor3Closed = true;
+				}
+			}
+		}
+	}
+
+	if (KillCount >= 100)
+	{
+		if (TargetDoor4 && !bIsDoorOpen4)
+		{
+			FRotator NewRotation = TargetDoor4->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			TargetDoor4->SetActorRotation(NewRotation);
+			bIsDoorOpen4 = true;
+
+			FRotator NewRotation1 = TargetDoor3->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor3->SetActorRotation(NewRotation1);
+			bIsDoorOpen3 = true;
+		}
+
+		FVector CurrentLocation = GetActorLocation();
+		FVector TargetLocation = FVector(-2775.0f, 6137.0f, 193.0f);
+		float Distance = FVector::Dist(CurrentLocation, TargetLocation);
+		if (Distance <= 1000.f)
+		{
+			SaveStateToGI();
+			UGameplayStatics::OpenLevel(GetWorld(), FName("TestLevel22"));
+		}
+	}
+
+	// 1. 조건 체크: 110킬 달성 && 특정 좌표 근처 && 아직 엔딩이 시작되지 않음
+	// FVector(100, 200, 300) 자리에 에디터에서 확인한 탈출구(철문) 좌표를 넣으세요!
+	float DistanceToExit = FVector::Dist(GetActorLocation(), FVector(100.0f, 200.0f, 300.0f));
+
+	if (KillCount >= 1 && !bIsEndingStarted)
+	{
+		bIsEndingStarted = true;
+
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (PC)
+		{
+			CurrentClip = 0;
+	
+			FInputModeUIOnly InputMode;
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = true;
+
+	
+			EndingClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/2TeamProject/BP/Ending.Ending_C"));
+			if (EndingClass)
+			{
+				EndingWidget = CreateWidget<UUserWidget>(PC, EndingClass);
+				if (EndingWidget) EndingWidget->AddToViewport();
+			}
+
+
+			FTimerHandle TimerHandle;
+			TWeakObjectPtr<APlayerController> WeakPC(PC);
+			TWeakObjectPtr<UUserWidget> WeakEnding(EndingWidget);
+
+			GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([WeakPC, WeakEnding]()
+			{
+				if (WeakPC.IsValid())
+				{
+					if (WeakEnding.IsValid()) WeakEnding->RemoveFromParent();
+
+					TSubclassOf<UUserWidget> MenuClass = LoadClass<UUserWidget>(
+						nullptr, TEXT("/Game/2TeamProject/UI/WBP_MainMenu.WBP_MainMenu_C"));
+                
+					if (MenuClass)
+					{
+						UUserWidget* MenuWidget = CreateWidget<UUserWidget>(WeakPC.Get(), MenuClass);
+						if (MenuWidget) MenuWidget->AddToViewport();
+					}
+				}
+			}), 2.0f, false);
+		}
+	}
+
+
 	if (!bIsSprint && !bIsStealthMode)
 	{
 		Stamina = FMath::Min(Stamina + (10.0f * DeltaTime), MaxStamina);
 	}
 	if (bIsStealthMode)
 	{
-		Stamina -= 20 * DeltaTime;
+		Stamina -= 40 * DeltaTime;
 		if (Stamina < 0.0f)
 		{
 			Stamina = 0.0f;
@@ -941,6 +1155,10 @@ void AABaseCharacter::Stealth(bool bIsForce)
 		bIsStealthMode = true;
 		Tags.Remove(TEXT("Player"));
 		Tags.AddUnique(TEXT("Stealth"));
+		if (StealthOnSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, StealthOnSound, GetActorLocation());
+		}
 		for (UMaterialInstanceDynamic* Mat : CharacterMaterials)
 		{
 			if (Mat)
@@ -962,7 +1180,7 @@ void AABaseCharacter::Stealth(bool bIsForce)
 		{
 			if (Mat)
 			{
-				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f); // 원래대로 복구 [cite: 2026-02-18]
+				Mat->SetScalarParameterValue(TEXT("Opacity"), 1.0f);
 			}
 		}
 		GEngine->AddOnScreenDebugMessage(-1,
@@ -1004,7 +1222,6 @@ void AABaseCharacter::SetWeaponOpacity(float NewOpacity)
 	{
 		if (Mat)
 		{
-			// 머테리얼 에디터 내부의 파라미터 이름을 정확히 넣으세요!
 			Mat->SetScalarParameterValue(TEXT("opacity"), NewOpacity);
 		}
 	}
@@ -1016,7 +1233,6 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 	{
 		if (Mat)
 		{
-			// 머테리얼 에디터 내부의 파라미터 이름을 정확히 넣으세요!
 			Mat->SetScalarParameterValue(TEXT("opacity"), NewOpacity);
 		}
 	}
@@ -1024,7 +1240,6 @@ void AABaseCharacter::SetWeaponOpacity1(float NewOpacity)
 
 void AABaseCharacter::Die()
 {
-	// 이미 죽은 상태라면 중복 실행 방지
 	if (bIsDead) return;
 	bIsDead = true;
 
@@ -1036,23 +1251,21 @@ void AABaseCharacter::Die()
 			AnimInstance->Montage_Play(DieMontage);
 		}
 
-		// 1. 입력 차단
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
 			DisableInput(PC);
 		}
 
-		// 2. 이동 기능 즉시 정지 및 비활성화
+
 		if (GetCharacterMovement())
 		{
 			GetCharacterMovement()->StopMovementImmediately();
 			GetCharacterMovement()->DisableMovement();
 		}
 
-		// 3. 컨트롤러 연결 끊기
 		DetachFromControllerPendingDestroy();
 
-		// 4. 1.8초 뒤 애니메이션 박제 (누운 상태 유지)
+
 		FTimerHandle FreezeTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(FreezeTimerHandle, FTimerDelegate::CreateLambda([this]()
 		{
@@ -1063,7 +1276,6 @@ void AABaseCharacter::Die()
 			}
 		}), 1.8f, false);
 
-		// 1.8초(박제)보다 조금 더 뒤에 이동하도록 3.5초로 설정했습니다.
 		FTimerHandle RestartTimerHandle;
 		GetWorld()->GetTimerManager().SetTimer(RestartTimerHandle, this, &AABaseCharacter::RestartLevel, 3.5f, false);
 	}
@@ -1074,5 +1286,53 @@ void AABaseCharacter::RestartLevel()
 	UGameplayStatics::OpenLevel(this, FName("GameStart"));
 }
 
+void AABaseCharacter::AddKill()
+{
+	KillCount++;
+	Healing++;
+	GrenadeAddCount++;
+	// 20마리잡을때마다 20회복
+	if (Healing == 20)
+	{
+		if (CurrentHP < 100)
+		{
+			CurrentHP += 20;
+		}
+		Healing = 0;
+	}
+	//40마리 잡을때마다 수류탄 1개지급
+	if (GrenadeAddCount == 40)
+	{
+		GrenadeCount++;
+		GrenadeAddCount = 0;
+	}
+	if (KillCount == 50)
+	{
+		MaxClip = 30;
+	}
+	// 최대 스테미나 증가
+	if (KillCount == 60)
+	{
+		MaxStamina = 150;
+	}
+	// 대용량 탄창으로교체
+	if (KillCount >= 100)
+	{
+		MaxClip = 40;
+		MaxStamina = 150;
+	}
+}
 
-
+void AABaseCharacter::SaveStateToGI()
+{
+	UExodusGameInstance* GI = Cast<UExodusGameInstance>(GetGameInstance());
+	if (GI)
+	{
+		GI->SaveCurrentClip = this->CurrentClip;
+		GI->SaveCurrentGrenade = this->GrenadeCount;
+		GI->SaveCurrentHp = this->CurrentHP;
+		GI->SaveKillCount = this->KillCount;
+		GI->SaveGrenadeAddCount = this->GrenadeAddCount;
+		GI->SaveCurrentReserveAmmo = this->CurrentReserveAmmo;
+	}
+}
