@@ -295,10 +295,15 @@ public:
 	bool bIsDoor3Closed = false;
 
 	// 문주변 거리
-	const float PassThreshold = 300.0f;
+	const float PassThreshold = 400.0f;
 	
 	FVector CloseDoorDirection1 = 	FVector(-300,-5895,35);
 	FVector CloseDoorDirection2 = 	FVector(-5530,-5820,35);
 	FVector CloseDoorDirection3 = 	FVector(-3115,-8525,35);
 
+	UPROPERTY()
+	TSubclassOf<UUserWidget> EndingClass;
+	UPROPERTY()
+	UUserWidget* EndingWidget;
+	bool bIsEndingStarted = false;
 };		
