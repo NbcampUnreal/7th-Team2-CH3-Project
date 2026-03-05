@@ -43,7 +43,7 @@ AABaseCharacter::AABaseCharacter()
 	CameraComp->bUsePawnControlRotation = false;
 
 	//이동속도
-	NomalSpeed = 500.f;//260.0f
+	NomalSpeed = 260.0f;
 	SprintSpeedMultiplier = 2.0f;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
@@ -53,7 +53,7 @@ AABaseCharacter::AABaseCharacter()
 	CurrentHP = MaxHP;
 
 	//공격력	
-	Attack = 100;
+	Attack = 20;
 
 	//스테미나	
 	MaxStamina = 100;
@@ -628,7 +628,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 5)
+	if (KillCount >= 30)
 	{
 		// 문을열고
 		if (TargetDoor2 && !bIsDoorOpen2)
@@ -661,7 +661,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 10)
+	if (KillCount >= 60)
 	{
 		if (TargetDoor3 && !bIsDoorOpen3)
 		{
@@ -693,7 +693,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	}
 	
 
-	if (KillCount >= 15)
+	if (KillCount >= 90)
 	{
 		if (TargetDoor4 && !bIsDoorOpen4)
 		{
@@ -709,7 +709,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	// 새레벨처음문
-	if (KillCount >= 20)
+	if (KillCount >= 120)
 	{
 		if (TargetDoor5 && !bIsDoorOpen5)
 		{
@@ -734,7 +734,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	
-	if (KillCount >=25)
+	if (KillCount >=150)
 	{
 		if (TargetDoor6 && !bIsDoorOpen6)
 		{
@@ -766,7 +766,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	
-	if (KillCount >=30)
+	if (KillCount >=180)
 	{
 		if (TargetDoor7 && !bIsDoorOpen7)
 		{
@@ -785,7 +785,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	//엔딩문
 	float DistanceToExit = FVector::Dist(GetActorLocation(), FVector(-7480.0f, -3810.0f, 130));
 
-	if (KillCount >= 30 && !bIsEndingStarted && DistanceToExit <= 500.f)
+	if (KillCount >= 180 && !bIsEndingStarted && DistanceToExit <= 500.f)
 	{
 		bIsEndingStarted = true;
 
