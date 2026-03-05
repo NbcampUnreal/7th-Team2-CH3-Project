@@ -36,4 +36,7 @@ public:
 	int32 SaveGrenadeAddCount;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayerState")
 	int32 SaveCurrentReserveAmmo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SaveData")
+	float SaveRemainingTime; 
 };
