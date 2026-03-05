@@ -43,7 +43,7 @@ AABaseCharacter::AABaseCharacter()
 	CameraComp->bUsePawnControlRotation = false;
 
 	//이동속도
-	NomalSpeed = 260.f;
+	NomalSpeed = 260.0f;
 	SprintSpeedMultiplier = 2.0f;
 	SprintSpeed = NomalSpeed * SprintSpeedMultiplier;
 	GetCharacterMovement()->MaxWalkSpeed = NomalSpeed;
@@ -116,7 +116,11 @@ void AABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-
+	if (GetCapsuleComponent())
+	{
+		GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &AABaseCharacter::OnLevelTransitionOverlap);
+	}
+	
 	FString MapName = GetWorld()->GetMapName();
 	MapName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
@@ -624,7 +628,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 30)
+	if (KillCount >= 10)
 	{
 		// 문을열고
 		if (TargetDoor2 && !bIsDoorOpen2)
@@ -657,7 +661,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 60)
+	if (KillCount >= 20)
 	{
 		if (TargetDoor3 && !bIsDoorOpen3)
 		{
@@ -687,8 +691,9 @@ void AABaseCharacter::Tick(float DeltaTime)
 			}
 		}
 	}
+	
 
-	if (KillCount >= 100)
+	if (KillCount >= 30)
 	{
 		if (TargetDoor4 && !bIsDoorOpen4)
 		{
@@ -702,22 +707,85 @@ void AABaseCharacter::Tick(float DeltaTime)
 			TargetDoor3->SetActorRotation(NewRotation1);
 			bIsDoorOpen3 = true;
 		}
-
-		FVector CurrentLocation = GetActorLocation();
-		FVector TargetLocation = FVector(-2775.0f, 6137.0f, 193.0f);
-		float Distance = FVector::Dist(CurrentLocation, TargetLocation);
-		if (Distance <= 1000.f)
+	}
+	// 새레벨처음문
+	if (KillCount >= 40)
+	{
+		if (TargetDoor5 && !bIsDoorOpen5)
 		{
-			SaveStateToGI();
-			UGameplayStatics::OpenLevel(GetWorld(), FName("TestLevel22"));
+			FRotator NewRotation = TargetDoor5->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			bIsDoorOpen5 = true;
+			TargetDoor5->SetActorRotation(NewRotation);
+		}
+		if (TargetDoor5 && !bIsDoor5Closed)
+		{
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection4);
+			if (DistanceToDoor <= PassThreshold)
+			{
+				if (TargetDoor5)
+				{
+					FRotator NewRotation = TargetDoor5->GetActorRotation();
+					NewRotation.Yaw -= 90.0f;
+					bIsDoor5Closed = true;
+					TargetDoor5->SetActorRotation(NewRotation);
+				}
+			}
+		}
+	}
+	
+	if (KillCount >=50)
+	{
+		if (TargetDoor6 && !bIsDoorOpen6)
+		{
+		
+			FRotator NewRotation = TargetDoor6->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			TargetDoor6->SetActorRotation(NewRotation);
+			bIsDoorOpen6 = true;
+			
+			
+			FRotator NewRotation1 = TargetDoor5->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor5->SetActorRotation(NewRotation1);
+			bIsDoorOpen5 = true;
+		}
+		if (TargetDoor6 && !bIsDoor6Closed && bIsDoorOpen6)
+		{
+			// 현재 변수 값이 뭔지 로그에 같이 찍기
+    
+			float DistanceToDoor = FVector::Dist(GetActorLocation(), CloseDoorDirection5);
+			if (DistanceToDoor <= PassThreshold)
+			{
+				FRotator NewRotation = TargetDoor6->GetActorRotation();
+				NewRotation.Yaw -= 90.0f;
+				TargetDoor6->SetActorRotation(NewRotation);
+       
+				bIsDoor6Closed = true; // 여기서 true로 바꿨는데...
+			}
+		}
+	}
+	
+	if (KillCount >=60)
+	{
+		if (TargetDoor7 && !bIsDoorOpen7)
+		{
+			FRotator NewRotation = TargetDoor7->GetActorRotation();
+			NewRotation.Yaw += 90.0f;
+			TargetDoor7->SetActorRotation(NewRotation);
+			bIsDoorOpen7 = true;
+			
+			FRotator NewRotation1 = TargetDoor6->GetActorRotation();
+			NewRotation1.Yaw += 90.0f;
+			TargetDoor6->SetActorRotation(NewRotation1);
+			bIsDoorOpen6 = true;
 		}
 	}
 
-	// 1. 조건 체크: 110킬 달성 && 특정 좌표 근처 && 아직 엔딩이 시작되지 않음
-	// FVector(100, 200, 300) 자리에 에디터에서 확인한 탈출구(철문) 좌표를 넣으세요!
-	float DistanceToExit = FVector::Dist(GetActorLocation(), FVector(100.0f, 200.0f, 300.0f));
+	//엔딩문
+	float DistanceToExit = FVector::Dist(GetActorLocation(), FVector(-7480.0f, -3810.0f, 130));
 
-	if (KillCount >= 1 && !bIsEndingStarted)
+	if (KillCount >= 60 && !bIsEndingStarted && DistanceToExit <= 500.f)
 	{
 		bIsEndingStarted = true;
 
@@ -725,39 +793,35 @@ void AABaseCharacter::Tick(float DeltaTime)
 		if (PC)
 		{
 			CurrentClip = 0;
-	
+
 			FInputModeUIOnly InputMode;
 			PC->SetInputMode(InputMode);
 			PC->bShowMouseCursor = true;
-
-	
-			EndingClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/2TeamProject/BP/Ending.Ending_C"));
-			if (EndingClass)
+			
+			if (EndingWidgetClass)
 			{
-				EndingWidget = CreateWidget<UUserWidget>(PC, EndingClass);
+				EndingWidget = CreateWidget<UUserWidget>(PC, EndingWidgetClass);
 				if (EndingWidget) EndingWidget->AddToViewport();
 			}
-
-
+			
 			FTimerHandle TimerHandle;
 			TWeakObjectPtr<APlayerController> WeakPC(PC);
 			TWeakObjectPtr<UUserWidget> WeakEnding(EndingWidget);
 
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([WeakPC, WeakEnding]()
 			{
-				if (WeakPC.IsValid())
-				{
-					if (WeakEnding.IsValid()) WeakEnding->RemoveFromParent();
-
-					TSubclassOf<UUserWidget> MenuClass = LoadClass<UUserWidget>(
-						nullptr, TEXT("/Game/2TeamProject/UI/WBP_MainMenu.WBP_MainMenu_C"));
-                
-					if (MenuClass)
-					{
-						UUserWidget* MenuWidget = CreateWidget<UUserWidget>(WeakPC.Get(), MenuClass);
-						if (MenuWidget) MenuWidget->AddToViewport();
-					}
-				}
+			   if (WeakPC.IsValid())
+			   {
+				  if (WeakEnding.IsValid()) WeakEnding->RemoveFromParent();
+				  TSubclassOf<UUserWidget> MenuClass = LoadClass<UUserWidget>(
+					 nullptr, TEXT("/Game/2TeamProject/UI/WBP_MainMenu.WBP_MainMenu_C"));
+               
+				  if (MenuClass)
+				  {
+					 UUserWidget* MenuWidget = CreateWidget<UUserWidget>(WeakPC.Get(), MenuClass);
+					 if (MenuWidget) MenuWidget->AddToViewport();
+				  }
+			   }
 			}), 2.0f, false);
 		}
 	}
@@ -1336,3 +1400,22 @@ void AABaseCharacter::SaveStateToGI()
 		GI->SaveCurrentReserveAmmo = this->CurrentReserveAmmo;
 	}
 }
+void AABaseCharacter::OnLevelTransitionOverlap(UPrimitiveComponent* OverlappedComp, 
+	AActor* OtherActor, 
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, 
+	bool bFromSweep, 
+	const FHitResult& SweepResult)
+
+{
+	if (!OtherActor || bHasStageTransitioned) return;
+	if (OtherActor->ActorHasTag(FName("LevelOpen")))
+	{
+		if (KillCount >= 3)
+		{
+			bHasStageTransitioned = true;
+			SaveStateToGI();
+			UGameplayStatics::OpenLevel(GetWorld(), FName("MainStage"));
+		}
+	}
+} 
