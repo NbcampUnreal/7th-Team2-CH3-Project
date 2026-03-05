@@ -1,14 +1,26 @@
 ﻿#include "ExodusHUD.h"
-#include "Components/TextBlock.h"
 #include "TimerManager.h"
-#include "Kismet/GameplayStatics.h" 
 #include "ABaseCharacter.h" 
+#include "ExodusGameInstance.h"
+#include "Kismet/GameplayStatics.h" 
+#include "Components/TextBlock.h"
 
 void UExodusHUD::NativeConstruct()
 {
     Super::NativeConstruct();
 
     TotalSeconds = StartTimeSeconds;
+
+    UExodusGameInstance* GI = Cast<UExodusGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
+
+    if (GI && GI->SaveRemainingTime > 0)
+    {
+        TotalSeconds = GI->SaveRemainingTime;
+    }
+    else
+    {
+        TotalSeconds = StartTimeSeconds;    
+    }
 
     if (Txt_Timer)
     {
@@ -44,5 +56,11 @@ void UExodusHUD::UpdateTimer()
         {
             Hunter->Die();
         }
+    }
+
+    UExodusGameInstance* GI = Cast<UExodusGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
+    if (GI)
+    {
+        GI->SaveRemainingTime = TotalSeconds;
     }
 }
