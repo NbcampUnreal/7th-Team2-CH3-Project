@@ -332,4 +332,7 @@ public:
 	const FHitResult& SweepResult);
 	
 	bool bHasStageTransitioned =false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> EndingWidgetClass;
 };		
