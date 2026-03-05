@@ -283,27 +283,53 @@ public:
 	AActor* TargetDoor3;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
 	AActor* TargetDoor4;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor5;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor6;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LevelDesign")
+	AActor* TargetDoor7;
 	
 	bool bIsDoorOpen1 = false;
 	bool bIsDoorOpen2 = false;
 	bool bIsDoorOpen3 = false;
 	bool bIsDoorOpen4 = false;
+	bool bIsDoorOpen5 = false;
+	bool bIsDoorOpen6 = false;
+	bool bIsDoorOpen7 = false;
 	
 	
 	bool bIsDoor1Closed = false;
 	bool bIsDoor2Closed = false;
 	bool bIsDoor3Closed = false;
+	bool bIsDoor4Closed = false;
+	bool bIsDoor5Closed = false;
+	bool bIsDoor6Closed = false;
+	
 
 	// 문주변 거리
-	const float PassThreshold = 400.0f;
+	const float PassThreshold = 300.0f;
 	
 	FVector CloseDoorDirection1 = 	FVector(-300,-5895,35);
 	FVector CloseDoorDirection2 = 	FVector(-5530,-5820,35);
 	FVector CloseDoorDirection3 = 	FVector(-3115,-8525,35);
+	FVector CloseDoorDirection4 = 	FVector(1450,-2295,-30);
+	FVector CloseDoorDirection5 = 	FVector(-1270,-6650,0);
+	
 
 	UPROPERTY()
 	TSubclassOf<UUserWidget> EndingClass;
 	UPROPERTY()
 	UUserWidget* EndingWidget;
 	bool bIsEndingStarted = false;
+	
+	UFUNCTION()
+	void OnLevelTransitionOverlap(UPrimitiveComponent* OverlappedComp, 
+	AActor* OtherActor, 
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, 
+	bool bFromSweep, 
+	const FHitResult& SweepResult);
+	
+	bool bHasStageTransitioned =false;
 };		
