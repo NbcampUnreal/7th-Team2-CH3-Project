@@ -628,7 +628,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 10)
+	if (KillCount >= 30)
 	{
 		// 문을열고
 		if (TargetDoor2 && !bIsDoorOpen2)
@@ -661,7 +661,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 
-	if (KillCount >= 20)
+	if (KillCount >= 60)
 	{
 		if (TargetDoor3 && !bIsDoorOpen3)
 		{
@@ -693,7 +693,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	}
 	
 
-	if (KillCount >= 30)
+	if (KillCount >= 90)
 	{
 		if (TargetDoor4 && !bIsDoorOpen4)
 		{
@@ -709,7 +709,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	// 새레벨처음문
-	if (KillCount >= 40)
+	if (KillCount >= 120)
 	{
 		if (TargetDoor5 && !bIsDoorOpen5)
 		{
@@ -734,7 +734,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	
-	if (KillCount >=50)
+	if (KillCount >=150)
 	{
 		if (TargetDoor6 && !bIsDoorOpen6)
 		{
@@ -766,7 +766,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 		}
 	}
 	
-	if (KillCount >=60)
+	if (KillCount >=180)
 	{
 		if (TargetDoor7 && !bIsDoorOpen7)
 		{
@@ -785,7 +785,7 @@ void AABaseCharacter::Tick(float DeltaTime)
 	//엔딩문
 	float DistanceToExit = FVector::Dist(GetActorLocation(), FVector(-7480.0f, -3810.0f, 130));
 
-	if (KillCount >= 60 && !bIsEndingStarted && DistanceToExit <= 500.f)
+	if (KillCount >= 180 && !bIsEndingStarted && DistanceToExit <= 500.f)
 	{
 		bIsEndingStarted = true;
 
@@ -793,35 +793,39 @@ void AABaseCharacter::Tick(float DeltaTime)
 		if (PC)
 		{
 			CurrentClip = 0;
-
+	
 			FInputModeUIOnly InputMode;
 			PC->SetInputMode(InputMode);
 			PC->bShowMouseCursor = true;
-			
-			if (EndingWidgetClass)
+
+	
+			EndingClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/2TeamProject/BP/Ending.Ending_C"));
+			if (EndingClass)
 			{
-				EndingWidget = CreateWidget<UUserWidget>(PC, EndingWidgetClass);
+				EndingWidget = CreateWidget<UUserWidget>(PC, EndingClass);
 				if (EndingWidget) EndingWidget->AddToViewport();
 			}
-			
+
+
 			FTimerHandle TimerHandle;
 			TWeakObjectPtr<APlayerController> WeakPC(PC);
 			TWeakObjectPtr<UUserWidget> WeakEnding(EndingWidget);
 
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateLambda([WeakPC, WeakEnding]()
 			{
-			   if (WeakPC.IsValid())
-			   {
-				  if (WeakEnding.IsValid()) WeakEnding->RemoveFromParent();
-				  TSubclassOf<UUserWidget> MenuClass = LoadClass<UUserWidget>(
-					 nullptr, TEXT("/Game/2TeamProject/UI/WBP_MainMenu.WBP_MainMenu_C"));
-               
-				  if (MenuClass)
-				  {
-					 UUserWidget* MenuWidget = CreateWidget<UUserWidget>(WeakPC.Get(), MenuClass);
-					 if (MenuWidget) MenuWidget->AddToViewport();
-				  }
-			   }
+				if (WeakPC.IsValid())
+				{
+					if (WeakEnding.IsValid()) WeakEnding->RemoveFromParent();
+
+					TSubclassOf<UUserWidget> MenuClass = LoadClass<UUserWidget>(
+						nullptr, TEXT("/Game/2TeamProject/UI/WBP_MainMenu.WBP_MainMenu_C"));
+                
+					if (MenuClass)
+					{
+						UUserWidget* MenuWidget = CreateWidget<UUserWidget>(WeakPC.Get(), MenuClass);
+						if (MenuWidget) MenuWidget->AddToViewport();
+					}
+				}
 			}), 2.0f, false);
 		}
 	}
